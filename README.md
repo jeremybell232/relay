@@ -68,8 +68,10 @@ that can't be read cross-origin (these stay linked, which is how Google Fonts ke
 | ⌘Z / ⇧⌘Z | undo / redo |
 
 Annotations work like Figma's. Each one is a card in a column just outside the snapshot, on the side
-nearer its element, joined to it by a thin dashed grey line and a small dot. Hovering a card
-outlines its element in thin blue.
+nearer its element, joined to it by a thin dashed grey line. The line ends in a small dot on the
+element's edge facing the card. Lines are straight whenever the card can sit level with its element.
+When there isn't room, the line turns 90° in the gap beside the snapshot, with rounded corners.
+Hovering a card outlines its element in thin blue.
 - Cards in a column sort top to bottom by their element and never overlap. The layout redoes itself
   as you type, move the snapshot, or scroll inside it.
 - Drag a card across the snapshot to move it to the other side.

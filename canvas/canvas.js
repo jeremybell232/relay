@@ -367,20 +367,45 @@ function layoutNotes(notes) {
       pos.set(a.id, { x: a.at.x, y: a.at.y, h, side: null });
       continue;
     }
-    const pin = resolve(a.at);
-    const side = a.side || (pin.x < at.x + sizeOf(meta).w / 2 ? "left" : "right");
+    // The dot sits on the element's edge facing the annotation, at its vertical centre.
+    const b = locate(a.at.snap, a.at.path);
+    const anchor = b ? { x: b.x + b.w / 2, y: b.y + b.h / 2 } : resolve(a.at);
+    const side = a.side || (anchor.x < at.x + sizeOf(meta).w / 2 ? "left" : "right");
+    const pin = b ? { x: side === "left" ? b.x : b.x + b.w, y: anchor.y } : anchor;
     const key = `${a.at.snap}|${side}`;
     if (!columns.has(key)) columns.set(key, []);
     columns.get(key).push({ a, pin, h, at, meta, side });
   }
   for (const column of columns.values()) {
+    // Every card wants to sit level with its element so its connector is straight.
+    // Cards that would overlap merge into a block centred on what its members want,
+    // which keeps as many connectors straight as the space allows.
     column.sort((p, q) => p.pin.y - q.pin.y || p.pin.x - q.pin.x);
-    let floor = -Infinity;
-    for (const { a, pin, h, at, meta, side } of column) {
-      const x = side === "left" ? at.x - GUTTER - NOTE_W : at.x + sizeOf(meta).w + GUTTER;
-      const y = Math.max(pin.y - LINE_Y, floor);
-      pos.set(a.id, { x, y, h, side });
-      floor = y + h + NOTE_GAP;
+    const blocks = [];
+    for (const item of column) {
+      item.want = item.pin.y - LINE_Y;
+      blocks.push({ items: [item], top: item.want, height: item.h });
+      while (blocks.length > 1) {
+        const prev = blocks[blocks.length - 2];
+        const cur = blocks[blocks.length - 1];
+        if (prev.top + prev.height + NOTE_GAP <= cur.top) break;
+        const items = [...prev.items, ...cur.items];
+        let offset = 0;
+        let sum = 0;
+        for (const it of items) {
+          sum += it.want - offset;
+          offset += it.h + NOTE_GAP;
+        }
+        blocks.splice(-2, 2, { items, top: sum / items.length, height: offset - NOTE_GAP });
+      }
+    }
+    for (const block of blocks) {
+      let y = block.top;
+      for (const { a, h, at, meta, side, pin } of block.items) {
+        const x = side === "left" ? at.x - GUTTER - NOTE_W : at.x + sizeOf(meta).w + GUTTER;
+        pos.set(a.id, { x, y, h, side, pin, frameX: side === "left" ? at.x : at.x + sizeOf(meta).w });
+        y += h + NOTE_GAP;
+      }
     }
   }
   return pos;
@@ -492,14 +517,23 @@ function renderInk() {
     }
     el.style.transform = `translate(${x}px, ${y}px)`;
     if (!a.at.snap) continue;
-    const pin = resolve(a.at);
+    const pin = p.pin || resolve(a.at);
     const edge = pin.x > x + NOTE_W / 2 ? x + NOTE_W : x;
     const selected = selection?.kind === "ann" && selection.id === a.id;
     // Quiet by design: a thin dashed grey line and a small dot. They scale with the canvas
     // but never drop below a hairline on screen.
     const lw = Math.max(1.25, 1 / z);
+    const dragging = gesture?.type === "move" && gesture.id === a.id && gesture.drag;
+    // Straight when the card is level with its element; otherwise an elbow whose
+    // vertical run sits in the gap between the card and the snapshot.
+    const mid = dragging || p.frameX == null ? null : (edge + p.frameX) / 2;
     shapesEl.append(
-      svg("line", { x1: edge, y1: y + LINE_Y, x2: pin.x, y2: pin.y, class: "leader", "stroke-width": lw, "stroke-dasharray": `${lw * 4} ${lw * 3}` }),
+      svg("path", {
+        d: connector(edge, y + LINE_Y, mid, pin.x, pin.y, 12),
+        class: "leader",
+        "stroke-width": lw,
+        "stroke-dasharray": `${lw * 4} ${lw * 3}`,
+      }),
     );
     handlesEl.append(
       svg("circle", { cx: pin.x, cy: pin.y, r: Math.max(3, 2.5 / z), class: "pin" }),
@@ -507,6 +541,22 @@ function renderInk() {
       svg("circle", { cx: pin.x, cy: pin.y, r: 10 / z, class: "pin-hit", "data-handle": "pin", "data-id": a.id }),
     );
   }
+}
+
+// A connector from (x1, y1) to (x2, y2): straight if they're level (or there's no
+// gutter to turn in), otherwise horizontal → vertical at xm → horizontal, with
+// rounded corners.
+function connector(x1, y1, xm, x2, y2, radius) {
+  const dy = y2 - y1;
+  if (xm == null || Math.abs(dy) < 0.5) return `M${x1},${y1} L${x2},${y2}`;
+  const sx1 = Math.sign(xm - x1) || 1;
+  const sx2 = Math.sign(x2 - xm) || 1;
+  const sy = Math.sign(dy);
+  const r = Math.min(radius, Math.abs(dy) / 2, Math.abs(xm - x1), Math.abs(x2 - xm));
+  return (
+    `M${x1},${y1} H${xm - sx1 * r} Q${xm},${y1} ${xm},${y1 + sy * r} ` +
+    `V${y2 - sy * r} Q${xm},${y2} ${xm + sx2 * r},${y2} H${x2}`
+  );
 }
 
 function setHover(target) {
