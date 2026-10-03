@@ -42,7 +42,10 @@ ln -s "$PWD/skill" ~/.claude/skills/relay
 
 A frozen copy of the page's HTML, not a screenshot:
 
-- live form values, checkboxes, selects, `<canvas>` pixels and open shadow roots are kept
+- live form values, checkboxes, selects, `<canvas>` pixels, open shadow roots and the scroll position
+  of scroll boxes inside the page are kept
+- window-height units (`vh`, `dvh`, `vmin`, …) are frozen to the pixel sizes they had, so a
+  "full-screen" section keeps its height on the full-length card
 - every stylesheet is read from the CSSOM (so CSS-in-JS rules are included), and `@import` and
   relative `url()`s are resolved
 - same-origin images, background images and fonts are stored inline as data URIs, so a snapshot still
@@ -87,7 +90,10 @@ The canvas background defaults to `#F5F5F5`. Change it with the swatch in the to
 double-click the swatch to reset it. Annotation cards are white on light backgrounds and switch to a
 dark version on dark ones.
 
-Each snapshot's header shows the viewport size it was captured at (for example `1280 × 800`).
+Each card shows the whole page at full height. A dashed blue box labelled
+`Viewport · 1280 × 800` marks the part that was on screen when the snapshot was taken. Scroll boxes
+inside the page, such as a long list, keep the scroll position they had. Double-click a card to
+scroll them.
 
 New snapshots appear immediately. Snapshots of the same URL go in the same row; a new URL starts a
 new row.

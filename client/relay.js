@@ -53,6 +53,16 @@
     }
   };
 
+  // The canvas shows the whole page at full height, where 100vh would mean "the whole
+  // page". Freeze viewport-relative units to the pixel sizes they had when captured.
+  const VP_RE = /(?<![\w.-])(-?(?:\d+\.?\d*|\.\d+))([sld]?)(vh|vmin|vmax)\b/gi; // not inside names like .h-100vh
+  const freezeViewportUnits = (css) =>
+    css.replace(VP_RE, (m, n, _, unit) => {
+      const u = unit.toLowerCase();
+      const base = u === "vh" ? innerHeight : u === "vmin" ? Math.min(innerWidth, innerHeight) : Math.max(innerWidth, innerHeight);
+      return `${+((parseFloat(n) * base) / 100).toFixed(2)}px`;
+    });
+
   const URL_RE = /url\(\s*(['"]?)([^'")]+)\1\s*\)/g;
 
   // Make every url() absolute against `base`, then swap in data URIs where we can.
@@ -150,6 +160,11 @@
         c.removeAttribute("loading");
       }
 
+      // Scrolled containers (a long list, a panel) keep their scroll position.
+      if ((el.scrollTop || el.scrollLeft) && tag !== "iframe" && tag !== "frame") {
+        c.setAttribute("data-relay-scroll-el", `${el.scrollLeft},${el.scrollTop}`);
+      }
+
       // Open shadow roots → declarative shadow DOM (one level deep).
       if (el.shadowRoot && el.id !== HOST_ID) {
         const tpl = document.createElement("template");
@@ -197,7 +212,7 @@
       if (text == null) {
         if (sheet.href) styleNodes.push({ link: sheet.href, media });
       } else {
-        styleNodes.push({ css: await inlineCssUrls(text, pageBase), media });
+        styleNodes.push({ css: freezeViewportUnits(await inlineCssUrls(text, pageBase)), media });
       }
     }
     for (const s of styleNodes) {
@@ -226,6 +241,11 @@
         n.setAttribute("style", await inlineCssUrls(n.getAttribute("style"), pageBase));
       }),
     ]);
+
+    for (const n of clone.querySelectorAll("[style]")) {
+      const v = n.getAttribute("style");
+      if (/v(h|min|max)\b/i.test(v)) n.setAttribute("style", freezeViewportUnits(v));
+    }
 
     // 5. Anything left relative resolves against the original page.
     const base = document.createElement("base");
@@ -334,7 +354,7 @@
         label: label.value.trim(),
         viewport: { w: innerWidth, h: innerHeight },
         scroll: { x: scrollX, y: scrollY },
-        docHeight: document.documentElement.scrollHeight,
+        docHeight: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight || 0),
       };
       const res = await fetch(`${SERVER}/api/snapshots`, {
         method: "POST",

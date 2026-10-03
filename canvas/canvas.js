@@ -32,7 +32,11 @@ let loaded = false;
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const ann = (id) => doc.annotations.find((a) => a.id === id);
-const sizeOf = (meta) => ({ w: meta.viewport?.w || 1280, h: (meta.viewport?.h || 800) + HEADER });
+// Cards show the whole page. Its height starts as what the capture measured and is
+// corrected once the frozen page has loaded and can be measured directly.
+const pageHeights = new Map(); // snapshot id -> measured page height
+const pageHeight = (meta) => pageHeights.get(meta.id) || meta.docHeight || meta.viewport?.h || 800;
+const sizeOf = (meta) => ({ w: meta.viewport?.w || 1280, h: pageHeight(meta) + HEADER });
 const pathOf = (meta) => {
   try {
     const u = new URL(meta.url);
@@ -160,7 +164,8 @@ function cardFor(meta) {
   el.dataset.kind = "snap";
   el.dataset.id = meta.id;
   const { w } = sizeOf(meta);
-  const vh = meta.viewport?.h || 800;
+  const ph = pageHeight(meta);
+  const vp = { w: meta.viewport?.w || w, h: meta.viewport?.h || 800 };
   el.style.width = `${w}px`;
   el.innerHTML = `
     <header>
@@ -168,8 +173,12 @@ function cardFor(meta) {
       <a href="/snaps/${meta.id}.html" target="_blank" title="Open the frozen page in a tab">Open</a>
       <button data-action="delete" title="Delete snapshot">Delete</button>
     </header>
-    <div class="frame" style="height:${vh}px">
-      <iframe sandbox="allow-same-origin" loading="lazy" scrolling="no" width="${w}" height="${vh}"></iframe>
+    <div class="frame" style="height:${ph}px">
+      <iframe sandbox="allow-same-origin" loading="lazy" scrolling="no" width="${w}" height="${ph}"></iframe>
+      <div class="viewport-mark" title="What was in the window when this was captured"
+        style="left:${meta.scroll?.x || 0}px; top:${meta.scroll?.y || 0}px; width:${vp.w}px; height:${vp.h}px">
+        <span>Viewport · ${vp.w} × ${vp.h}</span>
+      </div>
       <div class="shield"></div>
     </div>`;
   el.querySelector(".label").textContent = meta.label || meta.title || "Untitled";
@@ -178,11 +187,18 @@ function cardFor(meta) {
   el.querySelector(".time").textContent = timeFmt.format(new Date(meta.createdAt));
   const frame = el.querySelector("iframe");
   // allow-same-origin without allow-scripts: nothing in the page runs, but we can
-  // still scroll it to where it was when it was captured.
+  // still measure it and restore the scroll positions of containers inside it.
   frame.addEventListener("load", () => {
     try {
-      frame.contentWindow.scrollTo({ left: meta.scroll?.x || 0, top: meta.scroll?.y || 0, behavior: "instant" });
       restoreFrameScroll(frame.contentDocument);
+      // Measure once; the page is frozen, so this is its real height.
+      const d = frame.contentDocument;
+      const h = Math.max(d.documentElement.scrollHeight, d.body?.scrollHeight || 0);
+      if (h && Math.abs(h - pageHeight(meta)) > 1) {
+        pageHeights.set(meta.id, h);
+        frame.height = h;
+        el.querySelector(".frame").style.height = `${h}px`;
+      }
     } catch {}
     renderInk(); // anchored annotations can now find their elements
   });
@@ -191,7 +207,13 @@ function cardFor(meta) {
 }
 
 // Same-origin iframes inside a snapshot were frozen too; put them back where they were scrolled.
+// Scrolled containers inside a page (a long list, a side panel) are restored the same way.
 function restoreFrameScroll(d) {
+  for (const el of d.querySelectorAll("[data-relay-scroll-el]")) {
+    const [x, y] = el.dataset.relayScrollEl.split(",").map(Number);
+    el.scrollLeft = x;
+    el.scrollTop = y;
+  }
   for (const f of d.querySelectorAll("iframe[data-relay-scroll]")) {
     const [x, y] = f.dataset.relayScroll.split(",").map(Number);
     const go = () => {
@@ -918,7 +940,20 @@ function scrollInside(card, e, dx, dy) {
       y -= r.top;
       el = win.document.elementFromPoint(x, y);
     }
-    win.scrollBy({ left: dx, top: dy, behavior: "instant" });
+    // Scroll the innermost container under the cursor that can still move this way,
+    // falling back to the page itself.
+    const canScroll = (el) => {
+      const cs = win.getComputedStyle(el);
+      const y = /(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight;
+      const x = /(auto|scroll)/.test(cs.overflowX) && el.scrollWidth > el.clientWidth;
+      if (dy && y) return dy > 0 ? el.scrollTop + el.clientHeight < el.scrollHeight - 1 : el.scrollTop > 0;
+      if (dx && x) return dx > 0 ? el.scrollLeft + el.clientWidth < el.scrollWidth - 1 : el.scrollLeft > 0;
+      return false;
+    };
+    let box = win.document.elementFromPoint(x, y);
+    while (box && box !== win.document.documentElement && box !== win.document.body && !canScroll(box)) box = box.parentElement;
+    if (box && box !== win.document.documentElement && box !== win.document.body) box.scrollBy({ left: dx, top: dy, behavior: "instant" });
+    else win.scrollBy({ left: dx, top: dy, behavior: "instant" });
   } catch {}
   renderInk(); // anchored annotations follow their elements as the page scrolls
 }

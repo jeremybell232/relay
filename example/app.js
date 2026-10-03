@@ -1,7 +1,7 @@
 // A small checklist app to try relay on: several lists, filters, a detail
 // drawer and empty states give plenty of page states worth snapshotting.
 
-const KEY = "checklists-demo";
+const KEY = "checklists-demo-v2";
 const today = new Date().toISOString().slice(0, 10);
 
 const seed = () => ({
@@ -15,6 +15,26 @@ const seed = () => ({
         { id: "g3", text: "Lemons", done: false },
         { id: "g4", text: "Coffee beans", done: false, due: today, notes: "The light roast from the corner shop" },
         { id: "g5", text: "Basil", done: true },
+        { id: "g6", text: "Greek yogurt", done: false },
+        { id: "g7", text: "Eggs", done: true },
+        { id: "g8", text: "Spinach", done: false },
+        { id: "g9", text: "Cherry tomatoes", done: false },
+        { id: "g10", text: "Olive oil", done: false },
+        { id: "g11", text: "Parmesan", done: false },
+        { id: "g12", text: "Garlic", done: false },
+        { id: "g13", text: "Red onions", done: true },
+        { id: "g14", text: "Avocados", done: false },
+        { id: "g15", text: "Bananas", done: false },
+        { id: "g16", text: "Blueberries", done: false },
+        { id: "g17", text: "Rolled oats", done: false },
+        { id: "g18", text: "Peanut butter", done: false },
+        { id: "g19", text: "Dark chocolate", done: false },
+        { id: "g20", text: "Sparkling water", done: true },
+        { id: "g21", text: "Rice", done: false },
+        { id: "g22", text: "Chickpeas", done: false },
+        { id: "g23", text: "Feta", done: false },
+        { id: "g24", text: "Cucumber", done: false },
+        { id: "g25", text: "Dish soap", done: false },
       ],
     },
     {

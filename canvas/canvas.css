@@ -78,6 +78,17 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 .card .frame { position: relative; overflow: hidden; background: #fff; }
 .card iframe { display: block; border: 0; pointer-events: none; }
 .card .shield { position: absolute; inset: 0; }
+/* The part of the page that was on screen when it was captured. */
+.viewport-mark {
+  position: absolute; pointer-events: none; box-sizing: border-box;
+  border: calc(1.5px / var(--z, 1)) dashed var(--select);
+}
+.viewport-mark span {
+  position: absolute; left: calc(-1.5px / var(--z, 1)); bottom: 100%;
+  padding: calc(2px / var(--z, 1)) calc(6px / var(--z, 1)); border-radius: calc(4px / var(--z, 1)) calc(4px / var(--z, 1)) 0 0;
+  background: var(--select); color: #fff; font: 500 calc(11px / var(--z, 1)) var(--font-sans); white-space: nowrap;
+}
+.card .frame { clip-path: inset(0); }
 .card.live .shield { cursor: ns-resize; }
 
 /* ---- annotations */
