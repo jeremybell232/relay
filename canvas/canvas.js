@@ -500,7 +500,7 @@ function renderInk() {
       el.className = "note";
       el.dataset.kind = "ann";
       el.dataset.id = a.id;
-      el.innerHTML = `<div class="note-text"></div><button class="note-x" data-action="delete-note" title="Delete annotation" aria-label="Delete annotation">✕</button>`;
+      el.innerHTML = `<div class="note-text"></div>`;
       notesEl.appendChild(el);
     }
     const text = el.querySelector(".note-text");
@@ -638,7 +638,8 @@ let gesture = null;
 
 viewport.addEventListener("pointerdown", (e) => {
   if (e.target.closest("[contenteditable=true]")) return;
-  if (e.target.closest("header a, header button, .note-x")) return;
+  if (e.button === 2) return; // right-click is handled by contextmenu
+  if (e.target.closest("header a, header button")) return;
   if (editingNote) document.activeElement.blur();
 
   const card = e.target.closest(".card");
@@ -821,16 +822,6 @@ viewport.addEventListener("dblclick", (e) => {
 });
 
 viewport.addEventListener("click", async (e) => {
-  const x = e.target.closest('[data-action="delete-note"]');
-  if (x) {
-    const id = x.closest(".note").dataset.id;
-    pushHistory();
-    doc.annotations = doc.annotations.filter((a) => a.id !== id);
-    if (selection?.id === id) selection = null;
-    render();
-    save();
-    return;
-  }
   const del = e.target.closest('[data-action="delete"]');
   if (!del) return;
   const id = del.closest(".card").dataset.id;
@@ -839,6 +830,20 @@ viewport.addEventListener("click", async (e) => {
   if (!confirm(`Delete this snapshot${also}? This can't be undone.`)) return;
   await fetch(`/api/snapshots/${id}`, { method: "DELETE" });
   removeSnap(id);
+});
+
+// Right-click an annotation to delete it (⌘Z brings it back).
+viewport.addEventListener("contextmenu", (e) => {
+  const hit = e.target.closest('[data-kind="ann"], [data-handle="pin"]');
+  if (!hit || hit.closest("[contenteditable=true]")) return;
+  e.preventDefault();
+  const id = hit.dataset.id;
+  pushHistory();
+  doc.annotations = doc.annotations.filter((a) => a.id !== id);
+  if (selection?.id === id) selection = null;
+  if (hoveredNote === id) hoveredNote = null;
+  render();
+  save();
 });
 
 viewport.addEventListener(

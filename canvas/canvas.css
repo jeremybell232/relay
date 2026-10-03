@@ -88,7 +88,7 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 .tag-text { fill: #fff; font-family: var(--font-sans); font-weight: 500; }
 
 .note {
-  position: absolute; width: 280px; padding: 14px 44px 14px 18px; border-radius: 16px;
+  position: absolute; width: 280px; padding: 14px 18px; border-radius: 16px;
   background: var(--card); color: var(--foreground); font: 400 16px/1.5 var(--font-sans);
   box-shadow: 0 1px 3px #0000001a, 0 10px 30px #0000001f; cursor: default;
 }
@@ -97,13 +97,6 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 .note-text { min-height: 24px; white-space: pre-wrap; overflow-wrap: anywhere; outline: none; }
 .note-text[contenteditable="true"] { cursor: text; user-select: text; }
 .note-text:empty::before { content: "Add an annotation"; color: var(--muted-foreground); opacity: 0.7; }
-.note-x {
-  position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; display: grid; place-items: center;
-  border: 0; border-radius: 6px; background: none; color: var(--muted-foreground); font-size: 14px; cursor: pointer;
-  opacity: 0; transition: opacity var(--dur-fast), background var(--dur-fast);
-}
-.note:hover .note-x, .note.selected .note-x { opacity: 1; }
-.note-x:hover { background: var(--accent); color: var(--foreground); }
 
 /* ---- chrome */
 .tools {
