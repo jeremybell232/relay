@@ -112,7 +112,7 @@ function bounds() {
   for (const a of doc.annotations) {
     if (a.type === "note") {
       const p = notePos.get(a.id);
-      if (p) boxes.push({ x: p.x, y: p.y, w: NOTE_W, h: p.h });
+      if (p) boxes.push({ x: p.x, y: p.y, w: p.w, h: p.h });
     }
     if (a.type === "box") boxes.push({ ...resolve(a.at), w: a.w, h: a.h });
     if (a.type === "arrow") {
@@ -140,7 +140,12 @@ function fit(box = bounds()) {
 
 // ------------------------------------------------------------------ rendering
 
+let lastZoom = null;
 function applyCamera() {
+  if (camera.z !== lastZoom) {
+    lastZoom = camera.z;
+    if (loaded) renderInk(); // card sizes depend on zoom past NOTE_MAX_ZOOM
+  }
   world.style.transform = worldTransform(camera);
   world.style.setProperty("--z", camera.z);
   $("#zoom").textContent = `${Math.round(camera.z * 100)}%`;
@@ -347,6 +352,11 @@ const NOTE_W = 280;
 const GUTTER = 48; // between the snapshot frame and its annotation column
 const NOTE_GAP = 12; // between stacked annotations
 const LINE_Y = 28; // where the connector meets the card: the first line of text
+const NOTE_MAX_ZOOM = 1; // past this zoom, cards stop growing on screen
+
+// World-space scale of annotation cards: 1 up to NOTE_MAX_ZOOM, then shrinking in the
+// world exactly as fast as the camera zooms in, so on screen they hold their size.
+const noteScale = () => Math.min(1, NOTE_MAX_ZOOM / camera.z);
 let notePos = new Map(); // id -> { x, y, h, side }
 
 function layoutNotes(notes) {
@@ -354,12 +364,13 @@ function layoutNotes(notes) {
   const columns = new Map(); // "snap|side" -> [{ a, pin, h }]
   for (const a of notes) {
     const el = notesEl.querySelector(`[data-id="${a.id}"]`);
-    const h = el?.offsetHeight || 64;
+    const k = noteScale();
+    const h = (el?.offsetHeight || 64) * k;
     const at = a.at.snap && doc.layout[a.at.snap];
     const meta = a.at.snap && snaps.get(a.at.snap);
     if (!at || !meta) {
       // A free annotation stays where it was put.
-      pos.set(a.id, { x: a.at.x, y: a.at.y, h, side: null });
+      pos.set(a.id, { x: a.at.x, y: a.at.y, h, w: NOTE_W * k, side: null });
       continue;
     }
     // The dot sits on the element's edge facing the annotation, at its vertical centre.
@@ -381,28 +392,29 @@ function layoutNotes(notes) {
     column.sort((p, q) => p.pin.y - q.pin.y || p.pin.x - q.pin.x);
     const blocks = [];
     for (const item of column) {
-      item.want = item.pin.y - LINE_Y;
+      item.want = item.pin.y - LINE_Y * noteScale();
       blocks.push({ items: [item], top: item.want, height: item.h });
       while (blocks.length > 1) {
         const prev = blocks[blocks.length - 2];
         const cur = blocks[blocks.length - 1];
-        if (prev.top + prev.height + NOTE_GAP <= cur.top) break;
+        if (prev.top + prev.height + NOTE_GAP * noteScale() <= cur.top) break;
         const items = [...prev.items, ...cur.items];
         let offset = 0;
         let sum = 0;
         for (const it of items) {
           sum += it.want - offset;
-          offset += it.h + NOTE_GAP;
+          offset += it.h + NOTE_GAP * noteScale();
         }
-        blocks.splice(-2, 2, { items, top: sum / items.length, height: offset - NOTE_GAP });
+        blocks.splice(-2, 2, { items, top: sum / items.length, height: offset - NOTE_GAP * noteScale() });
       }
     }
     for (const block of blocks) {
       let y = block.top;
       for (const { a, h, at, meta, side, pin } of block.items) {
-        const x = side === "left" ? at.x - GUTTER - NOTE_W : at.x + sizeOf(meta).w + GUTTER;
-        pos.set(a.id, { x, y, h, side, pin, frameX: side === "left" ? at.x : at.x + sizeOf(meta).w });
-        y += h + NOTE_GAP;
+        const k = noteScale();
+        const x = side === "left" ? at.x - (GUTTER + NOTE_W) * k : at.x + sizeOf(meta).w + GUTTER * k;
+        pos.set(a.id, { x, y, h, w: NOTE_W * k, side, pin, frameX: side === "left" ? at.x : at.x + sizeOf(meta).w });
+        y += h + NOTE_GAP * k;
       }
     }
   }
@@ -509,10 +521,11 @@ function renderInk() {
     const p = notePos.get(a.id);
     const el = notesEl.querySelector(`[data-id="${a.id}"]`);
     const { x, y } = p;
-    el.style.transform = `translate(${x}px, ${y}px)`;
+    el.style.transform = `translate(${x}px, ${y}px) scale(${noteScale()})`;
+    el.style.setProperty("--k", noteScale()); // keeps the selection ring a constant width
     if (!a.at.snap) continue;
     const pin = p.pin || resolve(a.at);
-    const edge = pin.x > x + NOTE_W / 2 ? x + NOTE_W : x;
+    const edge = pin.x > x + p.w / 2 ? x + p.w : x;
     const selected = selection?.kind === "ann" && selection.id === a.id;
     // Quiet by design: a thin dashed grey line and a small dot. They scale with the canvas
     // but never drop below a hairline on screen.
@@ -522,7 +535,7 @@ function renderInk() {
     const mid = p.frameX == null ? null : (edge + p.frameX) / 2;
     shapesEl.append(
       svg("path", {
-        d: connector(edge, y + LINE_Y, mid, pin.x, pin.y, 12),
+        d: connector(edge, y + LINE_Y * noteScale(), mid, pin.x, pin.y, 12 * noteScale()),
         class: "leader",
         "stroke-width": lw,
         "stroke-dasharray": `${lw * 4} ${lw * 3}`,
@@ -973,7 +986,7 @@ function selectionBox() {
     if (!p) continue;
     const x = Math.min(box.x, p.x);
     const y = Math.min(box.y, p.y);
-    box.w = Math.max(box.x + box.w, p.x + NOTE_W) - x;
+    box.w = Math.max(box.x + box.w, p.x + p.w) - x;
     box.h = Math.max(box.y + box.h, p.y + p.h) - y;
     box.x = x;
     box.y = y;

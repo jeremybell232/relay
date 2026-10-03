@@ -93,12 +93,12 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 .tag-text { fill: #fff; font-family: var(--font-sans); font-weight: 500; }
 
 .note {
-  position: absolute; width: 280px; padding: 14px 18px; border-radius: 16px;
+  position: absolute; transform-origin: 0 0; width: 280px; padding: 14px 18px; border-radius: 16px;
   background: var(--note-bg); color: var(--note-fg); border: 1px solid var(--note-border);
   font: 400 16px/1.5 var(--font-sans); box-shadow: 0 1px 3px #0000001a, 0 10px 30px #0000001f; cursor: default;
 }
 #viewport:not([data-tool="select"]) .note { pointer-events: none; }
-.note.selected { box-shadow: 0 0 0 calc(1.5px / var(--z, 1)) var(--select), 0 10px 30px #0000001f; }
+.note.selected { box-shadow: 0 0 0 calc(1.5px / (var(--z, 1) * var(--k, 1))) var(--select), 0 10px 30px #0000001f; }
 .note-text { min-height: 24px; white-space: pre-wrap; overflow-wrap: anywhere; outline: none; }
 .note-text[contenteditable="true"] { cursor: text; user-select: text; }
 .note-text:empty::before { content: "Add an annotation"; color: var(--note-fg); opacity: 0.4; }
