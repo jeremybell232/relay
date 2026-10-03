@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Checklists</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="app.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand"><span class="logo">✓</span> Checklists</div>
+        <p class="section">Lists</p>
+        <nav id="lists"></nav>
+        <form id="new-list" class="new-list">
+          <input name="title" placeholder="New list…" autocomplete="off" />
+        </form>
+        <button id="reset" class="ghost small">Reset demo data</button>
+      </aside>
+
+      <main class="main">
+        <header class="head">
+          <div>
+            <h1 id="title"></h1>
+            <p id="summary" class="muted"></p>
+          </div>
+          <div class="progress"><div id="bar"></div></div>
+        </header>
+
+        <form id="add" class="add">
+          <input name="text" placeholder="Add an item and press Enter" autocomplete="off" />
+          <button class="primary">Add</button>
+        </form>
+
+        <div class="toolbar">
+          <div class="tabs" role="tablist">
+            <button data-filter="all">All</button>
+            <button data-filter="active">Active</button>
+            <button data-filter="done">Done</button>
+          </div>
+          <button id="clear" class="ghost small">Clear completed</button>
+        </div>
+
+        <ul id="items" class="items"></ul>
+        <div id="empty" class="empty" hidden></div>
+      </main>
+
+      <aside id="drawer" class="drawer" hidden>
+        <header>
+          <p class="section">Item</p>
+          <button id="close" class="ghost small" aria-label="Close">✕</button>
+        </header>
+        <label>Title <input id="d-text" /></label>
+        <label>Due <input id="d-due" type="date" /></label>
+        <label>Priority
+          <select id="d-priority"><option value="">None</option><option>Low</option><option>Medium</option><option>High</option></select>
+        </label>
+        <label>Notes <textarea id="d-notes" rows="5"></textarea></label>
+        <button id="d-delete" class="danger small">Delete item</button>
+      </aside>
+    </div>
+
+    <script src="app.js"></script>
+
+    <!-- relay:start -->
+    <script>
+      if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+        var s = document.createElement("script");
+        s.src = "http://localhost:4400/relay.js";
+        document.body.appendChild(s);
+      }
+    </script>
+    <!-- relay:end -->
+  </body>
+</html>

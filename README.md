@@ -17,6 +17,16 @@ Add this to the page while developing:
 A small toolbar appears in the bottom-right corner. Type an optional label, click **Snap** (or press
 **⌥⇧S**), then open **Canvas ↗**. If relay isn't running, the script tag fails quietly.
 
+## Try it on the demo app
+
+```
+npm run demo                  # checklist app → http://localhost:5180, relay → http://localhost:4400
+```
+
+`example/` is a small checklist app with several lists, filters, a detail drawer and empty states, so
+there are plenty of states to snapshot. Its snapshots are saved to `example/.relay/`. Use
+**Reset demo data** in the app's sidebar to start over.
+
 ## Claude Code skill
 
 `skill/SKILL.md` adds `/relay` to Claude Code. With it, Claude starts relay in the desktop app's

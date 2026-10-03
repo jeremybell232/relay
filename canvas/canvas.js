@@ -136,7 +136,9 @@ function fit(box = bounds()) {
 function applyCamera() {
   world.style.transform = worldTransform(camera);
   world.style.setProperty("--z", camera.z);
-  const g = 24 * camera.z;
+  // Double the dot spacing as you zoom out so the grid never turns into noise.
+  let g = 24 * camera.z;
+  while (g < 12) g *= 2;
   viewport.style.backgroundSize = `${g}px ${g}px`;
   viewport.style.backgroundPosition = `${camera.x}px ${camera.y}px`;
   $("#zoom").textContent = `${Math.round(camera.z * 100)}%`;

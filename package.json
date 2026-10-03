@@ -3,8 +3,21 @@
   "version": "0.1.0",
   "description": "Snapshot local dev pages onto an annotatable infinite canvas.",
   "type": "module",
-  "bin": { "relay": "bin/relay.js" },
-  "files": ["bin", "client", "canvas", "skill"],
-  "engines": { "node": ">=18" },
-  "license": "MIT"
+  "bin": {
+    "relay": "bin/relay.js"
+  },
+  "files": [
+    "bin",
+    "client",
+    "canvas",
+    "skill"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "scripts": {
+    "start": "node bin/relay.js",
+    "demo": "node example/demo.js"
+  }
 }
