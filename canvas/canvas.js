@@ -172,10 +172,26 @@ function cardFor(meta) {
   frame.addEventListener("load", () => {
     try {
       frame.contentWindow.scrollTo({ left: meta.scroll?.x || 0, top: meta.scroll?.y || 0, behavior: "instant" });
+      restoreFrameScroll(frame.contentDocument);
     } catch {}
   });
   frame.src = `/snaps/${meta.id}.html`;
   return el;
+}
+
+// Same-origin iframes inside a snapshot were frozen too; put them back where they were scrolled.
+function restoreFrameScroll(d) {
+  for (const f of d.querySelectorAll("iframe[data-relay-scroll]")) {
+    const [x, y] = f.dataset.relayScroll.split(",").map(Number);
+    const go = () => {
+      try {
+        f.contentWindow.scrollTo({ left: x, top: y, behavior: "instant" });
+        restoreFrameScroll(f.contentDocument);
+      } catch {}
+    };
+    if (f.contentDocument?.readyState === "complete" && f.contentDocument.URL !== "about:blank") go();
+    else f.addEventListener("load", go, { once: true });
+  }
 }
 
 function renderCards() {
@@ -470,7 +486,7 @@ viewport.addEventListener(
     // Inside the live card, the wheel scrolls the frozen page instead of the canvas.
     const live = liveCard && e.target.closest(".card.live");
     if (live && !w.isZoom) {
-      live.querySelector("iframe").contentWindow?.scrollBy({ left: w.dx / camera.z, top: w.dy / camera.z, behavior: "instant" });
+      scrollInside(live, e, w.dx / camera.z, w.dy / camera.z);
       return;
     }
     if (w.isZoom) {
@@ -482,6 +498,26 @@ viewport.addEventListener(
   },
   { passive: false },
 );
+
+// Scroll the frozen page under the cursor, descending into frozen iframes so a page whose
+// content lives in an iframe still scrolls.
+function scrollInside(card, e, dx, dy) {
+  const at = doc.layout[card.dataset.id];
+  const p = toWorld(e);
+  let win = card.querySelector("iframe").contentWindow;
+  let x = p.x - at.x - 1;
+  let y = p.y - at.y - HEADER - 1;
+  try {
+    for (let el = win.document.elementFromPoint(x, y); el?.localName === "iframe" && el.contentWindow; ) {
+      const r = el.getBoundingClientRect();
+      win = el.contentWindow;
+      x -= r.left;
+      y -= r.top;
+      el = win.document.elementFromPoint(x, y);
+    }
+    win.scrollBy({ left: dx, top: dy, behavior: "instant" });
+  } catch {}
+}
 
 // Stop the browser zooming the whole page on pinch outside the viewport.
 document.addEventListener("gesturestart", (e) => e.preventDefault());

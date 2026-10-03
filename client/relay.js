@@ -44,6 +44,15 @@
     return assetCache.get(url);
   };
 
+  const frameDoc = (el) => {
+    try {
+      const fd = el.contentDocument;
+      return fd && fd.documentElement && fd.URL !== "about:blank" ? fd : null;
+    } catch {
+      return null; // cross-origin
+    }
+  };
+
   const URL_RE = /url\(\s*(['"]?)([^'")]+)\1\s*\)/g;
 
   // Make every url() absolute against `base`, then swap in data URIs where we can.
@@ -61,18 +70,19 @@
 
   // Text of a stylesheet, reading cssRules so CSS-in-JS rules added via
   // insertRule are included. Returns null when the sheet is cross-origin.
-  const sheetText = (sheet, links) => {
+  const sheetText = (sheet, links, docBase) => {
     let rules;
     try {
       rules = sheet.cssRules;
     } catch {
       return null;
     }
-    const base = sheet.href || location.href;
+    const base = sheet.href || docBase;
     let out = "";
     for (const rule of rules) {
-      if (rule instanceof CSSImportRule) {
-        const inner = rule.styleSheet && sheetText(rule.styleSheet, links);
+      // type 3 = @import; instanceof would fail for sheets from an iframe's realm.
+      if (rule.type === 3) {
+        const inner = rule.styleSheet && sheetText(rule.styleSheet, links, base);
         const media = rule.media && rule.media.mediaText;
         if (inner == null) links.push({ href: abs(rule.href, base), media });
         else out += media ? `@media ${media} {\n${inner}\n}\n` : inner + "\n";
@@ -84,9 +94,10 @@
     return out;
   };
 
-
-  async function capture() {
-    const live = document.documentElement;
+  // Captures `d` (the page, or recursively a same-origin iframe's document).
+  async function capture(d = document) {
+    const pageBase = d.baseURI;
+    const live = d.documentElement;
     const clone = live.cloneNode(true);
 
     // 1. Copy live state into the clone. Both lists line up because the clone
@@ -94,9 +105,10 @@
     const liveEls = live.querySelectorAll("*");
     const cloneEls = clone.querySelectorAll("*");
     const replacements = [];
-    liveEls.forEach((el, i) => {
+    for (let i = 0; i < liveEls.length; i++) {
+      const el = liveEls[i];
       const c = cloneEls[i];
-      if (!c) return;
+      if (!c) continue;
       const tag = el.localName;
       if (tag === "input") {
         if (el.type === "checkbox" || el.type === "radio") c.toggleAttribute("checked", el.checked);
@@ -112,6 +124,12 @@
           img.src = el.toDataURL();
           replacements.push([c, img]);
         } catch {} // tainted canvas: leave it blank
+      } else if ((tag === "iframe" || tag === "frame") && frameDoc(el)) {
+        // Same-origin frame: freeze it too and embed it inline. The canvas restores its scroll.
+        c.setAttribute("srcdoc", await capture(frameDoc(el)));
+        c.removeAttribute("src");
+        c.setAttribute("sandbox", "allow-same-origin");
+        c.setAttribute("data-relay-scroll", `${el.contentWindow.scrollX},${el.contentWindow.scrollY}`);
       } else if (tag === "iframe" || tag === "frame" || tag === "embed" || tag === "object") {
         const r = el.getBoundingClientRect();
         const box = document.createElement("div");
@@ -137,11 +155,11 @@
         const tpl = document.createElement("template");
         tpl.setAttribute("shadowrootmode", "open");
         let css = "";
-        for (const s of el.shadowRoot.adoptedStyleSheets || []) css += sheetText(s, []) || "";
+        for (const s of el.shadowRoot.adoptedStyleSheets || []) css += sheetText(s, [], pageBase) || "";
         tpl.innerHTML = (css ? `<style>${css}</style>` : "") + el.shadowRoot.innerHTML;
         c.prepend(tpl);
       }
-    });
+    }
     for (const [from, to] of replacements) from.replaceWith(to);
 
     // 2. Strip anything that runs, plus relay itself.
@@ -166,20 +184,20 @@
       if (!n.closest("template")) n.remove();
     });
     const head = clone.querySelector("head") || clone.insertBefore(document.createElement("head"), clone.firstChild);
-    const sheets = [...document.styleSheets, ...(document.adoptedStyleSheets || [])];
+    const sheets = [...d.styleSheets, ...(d.adoptedStyleSheets || [])];
     const styleNodes = [];
     for (const sheet of sheets) {
       if (sheet.disabled) continue;
       const node = sheet.ownerNode;
       if (node && node.closest && node.closest(`#${HOST_ID}`)) continue;
       const links = [];
-      const text = sheetText(sheet, links);
+      const text = sheetText(sheet, links, pageBase);
       const media = sheet.media && sheet.media.mediaText;
       for (const l of links) styleNodes.push({ link: l.href, media: l.media });
       if (text == null) {
         if (sheet.href) styleNodes.push({ link: sheet.href, media });
       } else {
-        styleNodes.push({ css: await inlineCssUrls(text, location.href), media });
+        styleNodes.push({ css: await inlineCssUrls(text, pageBase), media });
       }
     }
     for (const s of styleNodes) {
@@ -199,19 +217,19 @@
     // 4. Inline images and style="url(...)" so the snapshot survives the dev server stopping.
     await Promise.all([
       ...[...clone.querySelectorAll("img[src], input[type=image][src]")].map(async (img) => {
-        img.setAttribute("src", await inlineAsset(abs(img.getAttribute("src"))));
+        img.setAttribute("src", await inlineAsset(abs(img.getAttribute("src"), pageBase)));
       }),
       ...[...clone.querySelectorAll("video[poster]")].map(async (v) => {
-        v.setAttribute("poster", await inlineAsset(abs(v.getAttribute("poster"))));
+        v.setAttribute("poster", await inlineAsset(abs(v.getAttribute("poster"), pageBase)));
       }),
       ...[...clone.querySelectorAll('[style*="url("]')].map(async (n) => {
-        n.setAttribute("style", await inlineCssUrls(n.getAttribute("style"), location.href));
+        n.setAttribute("style", await inlineCssUrls(n.getAttribute("style"), pageBase));
       }),
     ]);
 
     // 5. Anything left relative resolves against the original page.
     const base = document.createElement("base");
-    base.href = location.href;
+    base.href = pageBase;
     head.prepend(base);
     if (!head.querySelector("meta[charset]")) {
       const meta = document.createElement("meta");
@@ -219,7 +237,7 @@
       head.prepend(meta);
     }
 
-    const dt = document.doctype;
+    const dt = d.doctype;
     const doctype = dt
       ? `<!DOCTYPE ${dt.name}${dt.publicId ? ` PUBLIC "${dt.publicId}"` : ""}${dt.systemId ? ` "${dt.systemId}"` : ""}>`
       : "";

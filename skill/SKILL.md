@@ -103,6 +103,10 @@ run **Add** first.
 
 ## Notes
 
+- Never delete snapshots or edit `canvas.json` unless the user asks. Snapshots you took for testing
+  are the only exception, and you identify them by ID from your own `snap` results, never by
+  clearing a folder or deleting every snapshot. Deleting is permanent.
+
 - Snapshots are frozen HTML with styles and same-origin assets inlined and scripts removed. Hover
   states, iframe contents and stylesheets that can't be read cross-origin aren't captured.
 - The data files are `.relay/canvas.json` (layout and annotations) and `.relay/snaps/<id>.{html,json}`.
