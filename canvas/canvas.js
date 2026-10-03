@@ -19,6 +19,7 @@ const notesEl = $("#notes");
 const shapesEl = $("#shapes");
 const handlesEl = $("#handles");
 const draftEl = $("#draft");
+const hoverEl = $("#hover");
 
 const snaps = new Map(); // id -> meta from the server
 let doc = { version: 1, camera: null, layout: {}, annotations: [] };
@@ -109,10 +110,16 @@ function bounds() {
     if (at) boxes.push({ x: at.x, y: at.y, ...sizeOf(m) });
   }
   for (const a of doc.annotations) {
-    if (a.type === "note") boxes.push({ x: a.x, y: a.y, w: 240, h: 120 });
-    if (a.type === "box") boxes.push(a);
-    if (a.type === "arrow")
-      boxes.push({ x: Math.min(a.x1, a.x2), y: Math.min(a.y1, a.y2), w: Math.abs(a.x2 - a.x1), h: Math.abs(a.y2 - a.y1) });
+    if (a.type === "note") {
+      const p = resolve(a.at);
+      boxes.push({ x: p.x + a.nx, y: p.y + a.ny, w: NOTE_W, h: 120 });
+    }
+    if (a.type === "box") boxes.push({ ...resolve(a.at), w: a.w, h: a.h });
+    if (a.type === "arrow") {
+      const p1 = resolve(a.from);
+      const p2 = resolve(a.to);
+      boxes.push({ x: Math.min(p1.x, p2.x), y: Math.min(p1.y, p2.y), w: Math.abs(p2.x - p1.x), h: Math.abs(p2.y - p1.y) });
+    }
   }
   if (!boxes.length) return null;
   const x = Math.min(...boxes.map((b) => b.x));
@@ -176,6 +183,7 @@ function cardFor(meta) {
       frame.contentWindow.scrollTo({ left: meta.scroll?.x || 0, top: meta.scroll?.y || 0, behavior: "instant" });
       restoreFrameScroll(frame.contentDocument);
     } catch {}
+    renderInk(); // anchored annotations can now find their elements
   });
   frame.src = `/snaps/${meta.id}.html`;
   return el;
@@ -190,6 +198,7 @@ function restoreFrameScroll(d) {
         f.contentWindow.scrollTo({ left: x, top: y, behavior: "instant" });
         restoreFrameScroll(f.contentDocument);
       } catch {}
+      renderInk();
     };
     if (f.contentDocument?.readyState === "complete" && f.contentDocument.URL !== "about:blank") go();
     else f.addEventListener("load", go, { once: true });
@@ -218,33 +227,205 @@ const svg = (tag, attrs) => {
   return el;
 };
 
+// ------------------------------------------------------------------ anchors
+//
+// An annotation point is either free ({x, y} in world space) or anchored to an
+// element inside a snapshot, like a Figma comment pinned to a node:
+//   { snap, path, dx, dy, label, rel }
+// `path` has one child-index list per document, descending through frozen
+// iframes. `dx/dy` is the offset from the element's top-left corner. `rel` caches
+// the last resolved point relative to the card, for cards whose frame hasn't
+// loaded yet. Frozen pages never change, so the path stays valid forever.
+
+const INSET = { x: 1, y: HEADER + 1 }; // card border + header: where the frozen page starts
+
+function frameDoc(frame) {
+  try {
+    const d = frame?.contentDocument;
+    return d && d.readyState === "complete" && d.URL !== "about:blank" ? d : null;
+  } catch {
+    return null;
+  }
+}
+const cardDoc = (id) => frameDoc(cardsEl.querySelector(`.card[data-id="${id}"] iframe`));
+const childPath = (el) => {
+  const path = [];
+  for (; el.parentElement; el = el.parentElement) path.unshift([...el.parentElement.children].indexOf(el));
+  return path;
+};
+const walk = (d, path) => path.reduce((el, i) => el?.children[i], d.documentElement);
+const describe = (el) => el.localName + (el.id ? `#${el.id}` : el.classList?.[0] ? `.${el.classList[0]}` : "");
+
+// The element under a world point, descending into frozen iframes.
+function elementAt(w) {
+  for (const card of [...cardsEl.children].reverse()) {
+    const id = card.dataset.id;
+    const at = doc.layout[id];
+    const m = snaps.get(id);
+    if (!at || !m) continue;
+    let x = w.x - at.x - INSET.x;
+    let y = w.y - at.y - INSET.y;
+    if (x < 0 || y < 0 || x > sizeOf(m).w || y > sizeOf(m).h - HEADER) continue;
+    let d = cardDoc(id);
+    if (!d) return null;
+    const path = [];
+    for (;;) {
+      const el = d.elementFromPoint(x, y) || d.documentElement;
+      path.push(childPath(el));
+      const inner = el.localName === "iframe" && frameDoc(el);
+      if (!inner) return { snap: id, path, el };
+      const r = el.getBoundingClientRect();
+      x -= r.left + el.clientLeft;
+      y -= r.top + el.clientTop;
+      d = inner;
+    }
+  }
+  return null;
+}
+
+// World-space box of an anchored element, or null while its card's frame isn't loaded.
+function locate(snap, path) {
+  const at = doc.layout[snap];
+  let d = cardDoc(snap);
+  if (!at || !d) return null;
+  let ox = at.x + INSET.x;
+  let oy = at.y + INSET.y;
+  for (let i = 0; i < path.length; i++) {
+    const el = walk(d, path[i]);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    if (i === path.length - 1) return { x: ox + r.left, y: oy + r.top, w: r.width, h: r.height, el };
+    ox += r.left + el.clientLeft;
+    oy += r.top + el.clientTop;
+    d = frameDoc(el);
+    if (!d) return null;
+  }
+  return null;
+}
+
+// Anchor a world point to whatever element is under it, or leave it free.
+function anchorAt(w) {
+  const hit = elementAt(w);
+  const b = hit && locate(hit.snap, hit.path);
+  if (!b) return { x: w.x, y: w.y };
+  const at = doc.layout[hit.snap];
+  return { snap: hit.snap, path: hit.path, dx: w.x - b.x, dy: w.y - b.y, label: describe(hit.el), rel: { x: w.x - at.x, y: w.y - at.y } };
+}
+
+function resolve(p) {
+  if (!p.snap) return { x: p.x, y: p.y };
+  const at = doc.layout[p.snap];
+  if (!at) return { x: 0, y: 0 };
+  const b = locate(p.snap, p.path);
+  if (b) p.rel = { x: b.x + p.dx - at.x, y: b.y + p.dy - at.y };
+  return p.rel ? { x: at.x + p.rel.x, y: at.y + p.rel.y } : { x: at.x, y: at.y };
+}
+
+function movePoint(p, dx, dy) {
+  if (!p.snap) {
+    p.x += dx;
+    p.y += dy;
+    return;
+  }
+  p.dx += dx;
+  p.dy += dy;
+  if (p.rel) p.rel = { x: p.rel.x + dx, y: p.rel.y + dy };
+}
+
+const pointsOf = (a) => (a.type === "arrow" ? [a.from, a.to] : [a.at]);
+const snapsOf = (a) => pointsOf(a).map((p) => p.snap).filter(Boolean);
+
+// Older canvases stored plain coordinates; lift them into free points.
+function migrate(a) {
+  if (a.type === "note" && !a.at) return { id: a.id, type: "note", at: { x: a.x, y: a.y }, nx: 0, ny: 0, text: a.text || "" };
+  if (a.type === "arrow" && !a.from) return { id: a.id, type: "arrow", from: { x: a.x1, y: a.y1 }, to: { x: a.x2, y: a.y2 } };
+  if (a.type === "box" && !a.at) return { id: a.id, type: "box", at: { x: a.x, y: a.y }, w: a.w, h: a.h };
+  return a;
+}
+
+// ------------------------------------------------------------------ ink
+
+const NOTE_W = 240;
+let hover = null; // { snap, path } under the cursor while a drawing tool is active
+
 function shapeEls(a, cls = "shape") {
   if (a.type === "arrow") {
-    const line = { x1: a.x1, y1: a.y1, x2: a.x2, y2: a.y2 };
-    return [
+    const p1 = resolve(a.from);
+    const p2 = resolve(a.to);
+    const line = { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y };
+    const out = [
       svg("line", { ...line, class: cls, "stroke-width": STROKE, "marker-end": "url(#head)" }),
       svg("line", { ...line, class: "hit", "stroke-width": STROKE * 4, "data-kind": "ann", "data-id": a.id }),
     ];
+    if (a.from.snap) out.push(svg("circle", { cx: p1.x, cy: p1.y, r: STROKE, class: "tail" }));
+    return out;
   }
-  const rect = { x: a.x, y: a.y, width: Math.max(1, a.w), height: Math.max(1, a.h), rx: 6 };
+  const p = resolve(a.at);
+  const rect = { x: p.x, y: p.y, width: Math.max(1, a.w), height: Math.max(1, a.h), rx: 6 };
   return [
     svg("rect", { ...rect, class: cls, "stroke-width": STROKE }),
     svg("rect", { ...rect, class: "hit", "stroke-width": STROKE * 4, "data-kind": "ann", "data-id": a.id }),
   ];
 }
 
+// Outline an element the way a design tool does, with its tag as a label.
+function outline(target, cls) {
+  const b = locate(target.snap, target.path);
+  if (!b) return [];
+  const z = camera.z;
+  const label = target.label || describe(b.el);
+  const fs = 12 / z;
+  const tw = (label.length * 7 + 12) / z;
+  return [
+    svg("rect", { x: b.x, y: b.y, width: b.w, height: b.h, class: cls, "stroke-width": 1.5 / z }),
+    svg("rect", { x: b.x, y: b.y - 20 / z, width: tw, height: 18 / z, rx: 3 / z, class: "tag-bg" }),
+    Object.assign(svg("text", { x: b.x + 6 / z, y: b.y - 7 / z, "font-size": fs, class: "tag-text" }), { textContent: label }),
+  ];
+}
+
 function renderInk() {
   shapesEl.replaceChildren();
   handlesEl.replaceChildren();
-  const r = 8 / camera.z;
+  hoverEl.replaceChildren();
+  const z = camera.z;
+  const r = 7 / z;
+
+  if (hover) hoverEl.append(...outline(hover, "outline"));
+
   for (const a of doc.annotations) {
-    if (a.type === "note") continue;
     const selected = selection?.kind === "ann" && selection.id === a.id;
+    if (selected) for (const p of pointsOf(a)) if (p.snap) handlesEl.append(...outline(p, "outline anchor"));
+
+    if (a.type === "note") {
+      // Pin on the element plus a leader line to the nearest edge of the sticky.
+      if (!a.at.snap) continue;
+      const pin = resolve(a.at);
+      const el = notesEl.querySelector(`[data-id="${a.id}"]`);
+      const nx = pin.x + a.nx;
+      const ny = pin.y + a.ny;
+      const nh = el?.offsetHeight || 120;
+      const cx = Math.min(Math.max(pin.x, nx), nx + NOTE_W);
+      const cy = Math.min(Math.max(pin.y, ny), ny + nh);
+      shapesEl.append(svg("line", { x1: pin.x, y1: pin.y, x2: cx, y2: cy, class: "leader", "stroke-width": 2 / z }));
+      handlesEl.append(
+        svg("circle", { cx: pin.x, cy: pin.y, r, class: selected ? "pin selected-pin" : "pin", "stroke-width": 2 / z, "data-handle": "pin", "data-id": a.id }),
+      );
+      continue;
+    }
+
     shapesEl.append(...shapeEls(a, selected ? "shape selected-shape" : "shape"));
     if (!selected) continue;
-    const points = a.type === "arrow" ? [["p1", a.x1, a.y1], ["p2", a.x2, a.y2]] : [["corner", a.x + a.w, a.y + a.h]];
+    let points;
+    if (a.type === "arrow") {
+      const p1 = resolve(a.from);
+      const p2 = resolve(a.to);
+      points = [["from", p1.x, p1.y], ["to", p2.x, p2.y]];
+    } else {
+      const p = resolve(a.at);
+      points = [["corner", p.x + a.w, p.y + a.h]];
+    }
     for (const [handle, cx, cy] of points)
-      handlesEl.append(svg("circle", { cx, cy, r, class: "handle", "stroke-width": 2 / camera.z, "data-handle": handle, "data-id": a.id }));
+      handlesEl.append(svg("circle", { cx, cy, r, class: "handle", "stroke-width": 2 / z, "data-handle": handle, "data-id": a.id }));
   }
 
   const seen = new Set();
@@ -260,10 +441,20 @@ function renderInk() {
       notesEl.appendChild(el);
     }
     if (editingNote !== a.id && el.textContent !== a.text) el.textContent = a.text;
-    el.style.transform = `translate(${a.x}px, ${a.y}px)`;
+    if (a.at.label) el.dataset.on = a.at.label;
+    else delete el.dataset.on;
+    const pin = resolve(a.at);
+    el.style.transform = `translate(${pin.x + a.nx}px, ${pin.y + a.ny}px)`;
     el.classList.toggle("selected", selection?.kind === "ann" && selection.id === a.id);
   }
   for (const el of [...notesEl.children]) if (!seen.has(el.dataset.id)) el.remove();
+}
+
+function setHover(target) {
+  const same = hover && target && hover.snap === target.snap && JSON.stringify(hover.path) === JSON.stringify(target.path);
+  if (same || (!hover && !target)) return;
+  hover = target;
+  renderInk();
 }
 
 function render() {
@@ -273,6 +464,7 @@ function render() {
 
 function setTool(t) {
   tool = t;
+  if (t === "select") setHover(null);
   viewport.dataset.tool = t;
   document.querySelectorAll("[data-tool]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tool === t)));
 }
@@ -346,7 +538,9 @@ viewport.addEventListener("pointerdown", (e) => {
 
   const start = toWorld(e);
   const screen = local(e);
-  viewport.setPointerCapture(e.pointerId);
+  try {
+    viewport.setPointerCapture(e.pointerId);
+  } catch {} // synthetic or already-released pointers can't be captured
 
   // Pan: space-drag, middle button, or dragging empty canvas with the select tool.
   const hit = e.target.closest("[data-id]");
@@ -359,7 +553,8 @@ viewport.addEventListener("pointerdown", (e) => {
 
   if (tool === "note") {
     pushHistory();
-    const a = { id: uid(), type: "note", x: start.x, y: start.y, text: "" };
+    const at = anchorAt(start);
+    const a = { id: uid(), type: "note", at, nx: at.snap ? 28 : 0, ny: at.snap ? 28 : 0, text: "" };
     doc.annotations.push(a);
     setTool("select");
     select({ kind: "ann", id: a.id });
@@ -376,6 +571,7 @@ viewport.addEventListener("pointerdown", (e) => {
   // Select tool on something: a resize handle, an annotation, or a card.
   const handle = e.target.closest("[data-handle]");
   if (handle) {
+    if (selection?.id !== handle.dataset.id) select({ kind: "ann", id: handle.dataset.id });
     gesture = { type: "handle", id: handle.dataset.id, handle: handle.dataset.handle, before: snapshotState(), moved: false };
     return;
   }
@@ -386,6 +582,13 @@ viewport.addEventListener("pointerdown", (e) => {
 });
 
 viewport.addEventListener("pointermove", (e) => {
+  if (!gesture || gesture.type === "draw") {
+    // Drawing tools highlight the element an annotation would attach to.
+    if (tool !== "select" && !spaceDown) {
+      const hit = elementAt(toWorld(e));
+      setHover(hit && { snap: hit.snap, path: hit.path, label: describe(hit.el) });
+    }
+  }
   if (!gesture) return;
   if (gesture.type === "pan") {
     const p = local(e);
@@ -400,16 +603,27 @@ viewport.addEventListener("pointermove", (e) => {
     const { start } = gesture;
     const a =
       gesture.shape === "arrow"
-        ? { type: "arrow", x1: start.x, y1: start.y, x2: p.x, y2: p.y }
-        : { type: "box", x: Math.min(start.x, p.x), y: Math.min(start.y, p.y), w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y) };
+        ? { type: "arrow", from: start, to: p }
+        : { type: "box", at: { x: Math.min(start.x, p.x), y: Math.min(start.y, p.y) }, w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y) };
     draftEl.replaceChildren(shapeEls(a)[0]);
     return;
   }
   if (gesture.type === "handle") {
     const a = ann(gesture.id);
-    if (gesture.handle === "p1") Object.assign(a, { x1: p.x, y1: p.y });
-    if (gesture.handle === "p2") Object.assign(a, { x2: p.x, y2: p.y });
-    if (gesture.handle === "corner") Object.assign(a, { w: Math.max(8, p.x - a.x), h: Math.max(8, p.y - a.y) });
+    // Dragging an arrow end or a note's pin re-attaches it to whatever is underneath.
+    if (gesture.handle === "from" || gesture.handle === "to") a[gesture.handle] = anchorAt(p);
+    if (gesture.handle === "pin") {
+      const pin = resolve(a.at);
+      const note = { x: pin.x + a.nx, y: pin.y + a.ny }; // the sticky itself stays put
+      a.at = anchorAt(p);
+      if (!a.at.snap) a.at = { x: p.x, y: p.y };
+      a.nx = note.x - p.x;
+      a.ny = note.y - p.y;
+    }
+    if (gesture.handle === "corner") {
+      const tl = resolve(a.at);
+      Object.assign(a, { w: Math.max(8, p.x - tl.x), h: Math.max(8, p.y - tl.y) });
+    }
     gesture.moved = true;
     renderInk();
     return;
@@ -425,10 +639,14 @@ viewport.addEventListener("pointermove", (e) => {
       at.x += dx;
       at.y += dy;
       renderCards();
+      renderInk(); // anchored annotations ride along with their card
     } else {
       const a = ann(gesture.id);
-      if (a.type === "arrow") Object.assign(a, { x1: a.x1 + dx, y1: a.y1 + dy, x2: a.x2 + dx, y2: a.y2 + dy });
-      else Object.assign(a, { x: a.x + dx, y: a.y + dy });
+      if (a.type === "note" && a.at.snap) {
+        // Moving a pinned note moves the sticky; the pin stays on its element.
+        a.nx += dx;
+        a.ny += dy;
+      } else for (const pt of pointsOf(a)) movePoint(pt, dx, dy);
       renderInk();
     }
   }
@@ -443,12 +661,27 @@ function endGesture() {
   if (g.type === "draw") {
     const { start, end } = g;
     const big = Math.hypot(end.x - start.x, end.y - start.y) > 8 / camera.z;
-    if (big) {
+    let a = null;
+    if (big && g.shape === "arrow") {
+      a = { id: uid(), type: "arrow", from: anchorAt(start), to: anchorAt(end) };
+    } else if (big) {
+      // A dragged box belongs to the element where the drag started.
+      const tl = { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y) };
+      const at = anchorAt(start);
+      movePoint(at, tl.x - start.x, tl.y - start.y);
+      a = { id: uid(), type: "box", at, w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y) };
+    } else if (g.shape === "box") {
+      // A click outlines the element under it, the way selecting a layer does.
+      const hit = elementAt(start);
+      const b = hit && locate(hit.snap, hit.path);
+      const PAD = 4;
+      if (b) {
+        const at = { snap: hit.snap, path: hit.path, dx: -PAD, dy: -PAD, label: describe(hit.el) };
+        a = { id: uid(), type: "box", at, w: b.w + PAD * 2, h: b.h + PAD * 2 };
+      }
+    }
+    if (a) {
       pushHistory();
-      const a =
-        g.shape === "arrow"
-          ? { id: uid(), type: "arrow", x1: start.x, y1: start.y, x2: end.x, y2: end.y }
-          : { id: uid(), type: "box", x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y) };
       doc.annotations.push(a);
       setTool("select");
       select({ kind: "ann", id: a.id });
@@ -460,6 +693,7 @@ function endGesture() {
   }
 }
 viewport.addEventListener("pointerup", endGesture);
+viewport.addEventListener("pointerleave", () => setHover(null));
 viewport.addEventListener("pointercancel", endGesture);
 
 viewport.addEventListener("dblclick", (e) => {
@@ -475,7 +709,9 @@ viewport.addEventListener("click", async (e) => {
   const del = e.target.closest('[data-action="delete"]');
   if (!del) return;
   const id = del.closest(".card").dataset.id;
-  if (!confirm("Delete this snapshot? This can't be undone.")) return;
+  const n = doc.annotations.filter((a) => snapsOf(a).includes(id)).length;
+  const also = n ? ` and the ${n} annotation${n > 1 ? "s" : ""} attached to it` : "";
+  if (!confirm(`Delete this snapshot${also}? This can't be undone.`)) return;
   await fetch(`/api/snapshots/${id}`, { method: "DELETE" });
   removeSnap(id);
 });
@@ -519,6 +755,7 @@ function scrollInside(card, e, dx, dy) {
     }
     win.scrollBy({ left: dx, top: dy, behavior: "instant" });
   } catch {}
+  renderInk(); // anchored annotations follow their elements as the page scrolls
 }
 
 // Stop the browser zooming the whole page on pinch outside the viewport.
@@ -599,6 +836,7 @@ function addSnap(meta, focus = false) {
 function removeSnap(id) {
   snaps.delete(id);
   delete doc.layout[id];
+  doc.annotations = doc.annotations.filter((a) => !snapsOf(a).includes(id));
   if (selection?.id === id) selection = null;
   if (liveCard === id) liveCard = null;
   render();
@@ -612,7 +850,10 @@ async function load() {
   ]);
   doc = { version: 1, camera: null, layout: {}, annotations: [], ...saved };
   // Forgiving load: drop anything malformed instead of refusing the whole file.
-  doc.annotations = (doc.annotations || []).filter((a) => a && a.id && ["note", "arrow", "box"].includes(a.type));
+  doc.annotations = (doc.annotations || [])
+    .filter((a) => a && a.id && ["note", "arrow", "box"].includes(a.type))
+    .map(migrate)
+    .filter((a) => a.type !== "note" || a.text.trim()); // an empty note is an abandoned edit
   loaded = true;
   for (const meta of list) {
     snaps.set(meta.id, meta);

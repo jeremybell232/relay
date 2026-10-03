@@ -77,6 +77,15 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 #viewport:not([data-tool="select"]) .hit { pointer-events: none; }
 .selected-shape { stroke: var(--select); }
 .handle { fill: var(--card); stroke: var(--select); pointer-events: all; cursor: crosshair; }
+.tail { fill: var(--ink); }
+.leader { stroke: var(--ink); stroke-linecap: round; }
+.pin { fill: var(--ink); stroke: var(--card); pointer-events: all; cursor: grab; }
+.selected-pin { fill: var(--select); }
+#viewport:not([data-tool="select"]) .pin { pointer-events: none; }
+.outline { fill: color-mix(in oklab, var(--select) 8%, transparent); stroke: var(--select); }
+.outline.anchor { fill: none; stroke-dasharray: 4 3; }
+.tag-bg { fill: var(--select); }
+.tag-text { fill: #fff; font-family: var(--font-sans); font-weight: 500; }
 
 .note {
   position: absolute; width: 240px; min-height: 120px; padding: 14px 16px; border-radius: 4px;
@@ -87,7 +96,10 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 #viewport:not([data-tool="select"]) .note { pointer-events: none; }
 .note.selected { box-shadow: 0 0 0 calc(2px / var(--z, 1)) var(--select), 0 8px 20px #00000014; }
 .note[contenteditable="true"] { cursor: text; user-select: text; }
-.note:empty::before { content: "Type a note…"; opacity: 0.45; }
+.note:empty::after { content: "Type a note…"; opacity: 0.45; }
+.note[data-on]::before {
+  content: attr(data-on); display: block; margin-bottom: 6px; font: 500 12px var(--font-sans); opacity: 0.6;
+}
 
 /* ---- chrome */
 .tools {

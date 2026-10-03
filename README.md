@@ -59,13 +59,20 @@ that can't be read cross-origin (these stay linked, which is how Google Fonts ke
 | Scroll / drag empty space / hold space | pan |
 | ⌘-scroll / pinch | zoom |
 | **V** | select and move snapshots and annotations |
-| **N** | sticky note (double-click a note to edit) |
-| **A** | arrow |
-| **R** | highlight box |
+| **N** | sticky note pinned to the element you click (double-click a note to edit) |
+| **A** | arrow; each end attaches to the element it starts or ends on |
+| **R** | click to outline an element, or drag to draw a box tied to the element under the drag start |
 | **F** | fit everything, or the selected snapshot |
 | double-click a snapshot | scroll inside the frozen page (Esc to leave) |
 | ⌫ | delete the selection (deleting a snapshot asks first and can't be undone) |
 | ⌘Z / ⇧⌘Z | undo / redo |
+
+Annotations attach to the HTML element under them, like comments pinned to a layer in Figma. With
+the Note, Arrow or Box tool, hovering outlines the element and shows its tag (`button#clear`,
+`li.item`). Attached annotations move with their card and follow their element as you scroll inside
+the snapshot. Drag a note to move the sticky while its pin stays on the element. Drag the pin, or an
+arrow's end, to attach it to something else. Annotations drawn on empty canvas stay free. Deleting a
+snapshot deletes the annotations attached to it.
 
 New snapshots appear immediately. Snapshots of the same URL go in the same row; a new URL starts a
 new row.
@@ -74,7 +81,7 @@ new row.
 
 ```
 .relay/.gitignore        "*": the folder ignores itself, and no tracked file is touched
-.relay/canvas.json       camera, card positions, annotations
+.relay/canvas.json       camera, card positions, annotations (with their element anchors)
 .relay/snaps/<id>.html   frozen page
 .relay/snaps/<id>.json   url, title, label, viewport, scroll position, time
 ```

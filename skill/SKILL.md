@@ -110,4 +110,10 @@ run **Add** first.
 - Snapshots are frozen HTML with styles and same-origin assets inlined and scripts removed. Hover
   states, iframe contents and stylesheets that can't be read cross-origin aren't captured.
 - The data files are `.relay/canvas.json` (layout and annotations) and `.relay/snaps/<id>.{html,json}`.
-  Read them if the user asks what's on the canvas.
+  Read them if the user asks what's on the canvas. An annotation point attached to an element looks
+  like `{snap, path, dx, dy, label}`:
+  - `label` is a readable tag such as `button#clear`.
+  - `path` has one list of child indices per document. Start at `documentElement` of
+    `.relay/snaps/<snap>.html` and walk down `children`; each extra list continues inside a frozen
+    iframe's `srcdoc`.
+  Use this to tell which element in the user's source code a note is about.
