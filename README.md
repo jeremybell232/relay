@@ -59,7 +59,7 @@ that can't be read cross-origin (these stay linked, which is how Google Fonts ke
 | Scroll / drag empty space / hold space | pan |
 | ⌘-scroll / pinch | zoom |
 | **V** | select and move snapshots and annotations |
-| **N** | sticky note pinned to the element you click (double-click a note to edit) |
+| **N** | annotate the element you click (double-click an annotation to edit it) |
 | **A** | arrow; each end attaches to the element it starts or ends on |
 | **R** | click to outline an element, or drag to draw a box tied to the element under the drag start |
 | **F** | fit everything, or the selected snapshot |
@@ -67,12 +67,17 @@ that can't be read cross-origin (these stay linked, which is how Google Fonts ke
 | ⌫ | delete the selection (deleting a snapshot asks first and can't be undone) |
 | ⌘Z / ⇧⌘Z | undo / redo |
 
-Annotations attach to the HTML element under them, like comments pinned to a layer in Figma. With
-the Note, Arrow or Box tool, hovering outlines the element and shows its tag (`button#clear`,
-`li.item`). Attached annotations move with their card and follow their element as you scroll inside
-the snapshot. Drag a note to move the sticky while its pin stays on the element. Drag the pin, or an
-arrow's end, to attach it to something else. Annotations drawn on empty canvas stay free. Deleting a
-snapshot deletes the annotations attached to it.
+Annotations work like Figma's. Each one is a card in a column just outside the snapshot, on the side
+nearer its element, joined to the element by a dotted line and a dot.
+- Cards in a column sort top to bottom by their element and never overlap. The layout redoes itself
+  as you type, move the snapshot, or scroll inside it.
+- Drag a card across the snapshot to move it to the other side.
+- Drag the dot onto another element to re-attach it.
+- Use the ✕ on a card to delete it.
+
+With the Annotate, Arrow or Box tool, hovering outlines the element and shows its tag
+(`button#clear`, `li.item`). Arrow ends and boxes attach to elements the same way. Anything drawn on
+empty canvas stays free. Deleting a snapshot deletes the annotations attached to it.
 
 New snapshots appear immediately. Snapshots of the same URL go in the same row; a new URL starts a
 new row.

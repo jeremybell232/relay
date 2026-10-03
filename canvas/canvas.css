@@ -7,8 +7,7 @@
   --accent: #f4f4f5;
   --dot: #d4d4d8;
   --ink: #ef4444;
-  --note: #fef08a;
-  --note-fg: #422006;
+  --annot: #ec4899;
   --select: #3b82f6;
   --radius: 8px;
   --dur-fast: 140ms;
@@ -24,7 +23,6 @@
     --border: #27272a;
     --accent: #27272a;
     --dot: #27272a;
-    --note: #fde047;
     color-scheme: dark;
   }
 }
@@ -78,8 +76,8 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 .selected-shape { stroke: var(--select); }
 .handle { fill: var(--card); stroke: var(--select); pointer-events: all; cursor: crosshair; }
 .tail { fill: var(--ink); }
-.leader { stroke: var(--ink); stroke-linecap: round; }
-.pin { fill: var(--ink); stroke: var(--card); pointer-events: all; cursor: grab; }
+.leader { stroke: var(--annot); stroke-linecap: round; fill: none; }
+.pin { fill: var(--annot); pointer-events: all; cursor: grab; }
 .selected-pin { fill: var(--select); }
 #viewport:not([data-tool="select"]) .pin { pointer-events: none; }
 .outline { fill: color-mix(in oklab, var(--select) 8%, transparent); stroke: var(--select); }
@@ -88,18 +86,22 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 .tag-text { fill: #fff; font-family: var(--font-sans); font-weight: 500; }
 
 .note {
-  position: absolute; width: 240px; min-height: 120px; padding: 14px 16px; border-radius: 4px;
-  background: var(--note); color: var(--note-fg); font: 500 16px/1.4 var(--font-sans);
-  box-shadow: 0 1px 2px #0000001a, 0 8px 20px #00000014; white-space: pre-wrap; word-wrap: break-word;
-  cursor: move; outline: none;
+  position: absolute; width: 280px; padding: 14px 44px 14px 18px; border-radius: 16px;
+  background: var(--card); color: var(--foreground); font: 400 16px/1.5 var(--font-sans);
+  box-shadow: 0 1px 3px #0000001a, 0 10px 30px #0000001f; cursor: default;
 }
 #viewport:not([data-tool="select"]) .note { pointer-events: none; }
-.note.selected { box-shadow: 0 0 0 calc(2px / var(--z, 1)) var(--select), 0 8px 20px #00000014; }
-.note[contenteditable="true"] { cursor: text; user-select: text; }
-.note:empty::after { content: "Type a note…"; opacity: 0.45; }
-.note[data-on]::before {
-  content: attr(data-on); display: block; margin-bottom: 6px; font: 500 12px var(--font-sans); opacity: 0.6;
+.note.selected { box-shadow: 0 0 0 calc(2px / var(--z, 1)) var(--annot), 0 10px 30px #0000001f; }
+.note-text { min-height: 24px; white-space: pre-wrap; overflow-wrap: anywhere; outline: none; }
+.note-text[contenteditable="true"] { cursor: text; user-select: text; }
+.note-text:empty::before { content: "Add an annotation"; color: var(--muted-foreground); opacity: 0.7; }
+.note-x {
+  position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; display: grid; place-items: center;
+  border: 0; border-radius: 6px; background: none; color: var(--muted-foreground); font-size: 14px; cursor: pointer;
+  opacity: 0; transition: opacity var(--dur-fast), background var(--dur-fast);
 }
+.note:hover .note-x, .note.selected .note-x { opacity: 1; }
+.note-x:hover { background: var(--accent); color: var(--foreground); }
 
 /* ---- chrome */
 .tools {

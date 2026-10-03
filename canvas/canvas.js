@@ -7,7 +7,7 @@ import { screenToWorld, panBy, zoomAt, worldTransform, zoomToBox, normalizeWheel
 // is closed (or mid-save) can be lost.
 
 const HEADER = 44;
-const GAP_X = 120;
+const GAP_X = 720; // room for annotation gutters on both sides of neighbouring cards
 const GAP_Y = 200;
 const STROKE = 6;
 
@@ -111,8 +111,8 @@ function bounds() {
   }
   for (const a of doc.annotations) {
     if (a.type === "note") {
-      const p = resolve(a.at);
-      boxes.push({ x: p.x + a.nx, y: p.y + a.ny, w: NOTE_W, h: 120 });
+      const p = notePos.get(a.id);
+      if (p) boxes.push({ x: p.x, y: p.y, w: NOTE_W, h: p.h });
     }
     if (a.type === "box") boxes.push({ ...resolve(a.at), w: a.w, h: a.h });
     if (a.type === "arrow") {
@@ -337,7 +337,7 @@ const snapsOf = (a) => pointsOf(a).map((p) => p.snap).filter(Boolean);
 
 // Older canvases stored plain coordinates; lift them into free points.
 function migrate(a) {
-  if (a.type === "note" && !a.at) return { id: a.id, type: "note", at: { x: a.x, y: a.y }, nx: 0, ny: 0, text: a.text || "" };
+  if (a.type === "note" && !a.at) return { id: a.id, type: "note", at: { x: a.x, y: a.y }, text: a.text || "" };
   if (a.type === "arrow" && !a.from) return { id: a.id, type: "arrow", from: { x: a.x1, y: a.y1 }, to: { x: a.x2, y: a.y2 } };
   if (a.type === "box" && !a.at) return { id: a.id, type: "box", at: { x: a.x, y: a.y }, w: a.w, h: a.h };
   return a;
@@ -345,7 +345,46 @@ function migrate(a) {
 
 // ------------------------------------------------------------------ ink
 
-const NOTE_W = 240;
+// Annotation cards, laid out like Figma's: in a gutter just outside the snapshot,
+// on the side nearest the element, sorted top to bottom and never overlapping,
+// each joined to its element by a dotted line.
+const NOTE_W = 280;
+const GUTTER = 48; // between the snapshot frame and its annotation column
+const NOTE_GAP = 12; // between stacked annotations
+const LINE_Y = 28; // where the connector meets the card: the first line of text
+let notePos = new Map(); // id -> { x, y, h, side }
+
+function layoutNotes(notes) {
+  const pos = new Map();
+  const columns = new Map(); // "snap|side" -> [{ a, pin, h }]
+  for (const a of notes) {
+    const el = notesEl.querySelector(`[data-id="${a.id}"]`);
+    const h = el?.offsetHeight || 64;
+    const at = a.at.snap && doc.layout[a.at.snap];
+    const meta = a.at.snap && snaps.get(a.at.snap);
+    if (!at || !meta) {
+      // A free annotation stays where it was put.
+      pos.set(a.id, { x: a.at.x, y: a.at.y, h, side: null });
+      continue;
+    }
+    const pin = resolve(a.at);
+    const side = a.side || (pin.x < at.x + sizeOf(meta).w / 2 ? "left" : "right");
+    const key = `${a.at.snap}|${side}`;
+    if (!columns.has(key)) columns.set(key, []);
+    columns.get(key).push({ a, pin, h, at, meta, side });
+  }
+  for (const column of columns.values()) {
+    column.sort((p, q) => p.pin.y - q.pin.y || p.pin.x - q.pin.x);
+    let floor = -Infinity;
+    for (const { a, pin, h, at, meta, side } of column) {
+      const x = side === "left" ? at.x - GUTTER - NOTE_W : at.x + sizeOf(meta).w + GUTTER;
+      const y = Math.max(pin.y - LINE_Y, floor);
+      pos.set(a.id, { x, y, h, side });
+      floor = y + h + NOTE_GAP;
+    }
+  }
+  return pos;
+}
 let hover = null; // { snap, path } under the cursor while a drawing tool is active
 
 function shapeEls(a, cls = "shape") {
@@ -396,22 +435,7 @@ function renderInk() {
     const selected = selection?.kind === "ann" && selection.id === a.id;
     if (selected) for (const p of pointsOf(a)) if (p.snap) handlesEl.append(...outline(p, "outline anchor"));
 
-    if (a.type === "note") {
-      // Pin on the element plus a leader line to the nearest edge of the sticky.
-      if (!a.at.snap) continue;
-      const pin = resolve(a.at);
-      const el = notesEl.querySelector(`[data-id="${a.id}"]`);
-      const nx = pin.x + a.nx;
-      const ny = pin.y + a.ny;
-      const nh = el?.offsetHeight || 120;
-      const cx = Math.min(Math.max(pin.x, nx), nx + NOTE_W);
-      const cy = Math.min(Math.max(pin.y, ny), ny + nh);
-      shapesEl.append(svg("line", { x1: pin.x, y1: pin.y, x2: cx, y2: cy, class: "leader", "stroke-width": 2 / z }));
-      handlesEl.append(
-        svg("circle", { cx: pin.x, cy: pin.y, r, class: selected ? "pin selected-pin" : "pin", "stroke-width": 2 / z, "data-handle": "pin", "data-id": a.id }),
-      );
-      continue;
-    }
+    if (a.type === "note") continue; // drawn below, once cards can be measured
 
     shapesEl.append(...shapeEls(a, selected ? "shape selected-shape" : "shape"));
     if (!selected) continue;
@@ -428,9 +452,10 @@ function renderInk() {
       handlesEl.append(svg("circle", { cx, cy, r, class: "handle", "stroke-width": 2 / z, "data-handle": handle, "data-id": a.id }));
   }
 
+  // Annotation cards: fill them in, measure, lay out, then connect them to their elements.
+  const notes = doc.annotations.filter((a) => a.type === "note");
   const seen = new Set();
-  for (const a of doc.annotations) {
-    if (a.type !== "note") continue;
+  for (const a of notes) {
     seen.add(a.id);
     let el = notesEl.querySelector(`[data-id="${a.id}"]`);
     if (!el) {
@@ -438,16 +463,38 @@ function renderInk() {
       el.className = "note";
       el.dataset.kind = "ann";
       el.dataset.id = a.id;
+      el.innerHTML = `<div class="note-text"></div><button class="note-x" data-action="delete-note" title="Delete annotation" aria-label="Delete annotation">✕</button>`;
       notesEl.appendChild(el);
     }
-    if (editingNote !== a.id && el.textContent !== a.text) el.textContent = a.text;
-    if (a.at.label) el.dataset.on = a.at.label;
-    else delete el.dataset.on;
-    const pin = resolve(a.at);
-    el.style.transform = `translate(${pin.x + a.nx}px, ${pin.y + a.ny}px)`;
+    const text = el.querySelector(".note-text");
+    if (editingNote !== a.id && text.textContent !== a.text) text.textContent = a.text;
     el.classList.toggle("selected", selection?.kind === "ann" && selection.id === a.id);
   }
   for (const el of [...notesEl.children]) if (!seen.has(el.dataset.id)) el.remove();
+
+  notePos = layoutNotes(notes);
+  for (const a of notes) {
+    const p = notePos.get(a.id);
+    const el = notesEl.querySelector(`[data-id="${a.id}"]`);
+    let { x, y } = p;
+    if (gesture?.type === "move" && gesture.id === a.id && gesture.drag) {
+      x += gesture.drag.x;
+      y += gesture.drag.y;
+    }
+    el.style.transform = `translate(${x}px, ${y}px)`;
+    if (!a.at.snap) continue;
+    const pin = resolve(a.at);
+    const edge = pin.x > x + NOTE_W / 2 ? x + NOTE_W : x;
+    const selected = selection?.kind === "ann" && selection.id === a.id;
+    // Sized with the canvas like the cards, but never thinner than a hairline on screen.
+    const lw = Math.max(2.5, 1.25 / z);
+    shapesEl.append(
+      svg("line", { x1: edge, y1: y + LINE_Y, x2: pin.x, y2: pin.y, class: "leader", "stroke-width": lw, "stroke-dasharray": `0 ${lw * 2.6}` }),
+    );
+    handlesEl.append(
+      svg("circle", { cx: pin.x, cy: pin.y, r: Math.max(6, 3 / z), class: selected ? "pin selected-pin" : "pin", "data-handle": "pin", "data-id": a.id }),
+    );
+  }
 }
 
 function setHover(target) {
@@ -482,11 +529,12 @@ function setLive(id) {
 // ------------------------------------------------------------------ notes
 
 function editNote(id) {
-  const el = notesEl.querySelector(`[data-id="${id}"]`);
+  const el = notesEl.querySelector(`[data-id="${id}"] .note-text`);
   if (!el) return;
   const before = snapshotState();
   editingNote = id;
   el.contentEditable = "true";
+  el.oninput = () => renderInk(); // the card grows as you type; keep the column tidy
   el.focus();
   getSelection().selectAllChildren(el);
   getSelection().collapseToEnd();
@@ -504,7 +552,7 @@ function editNote(id) {
         save();
       }
       if (!a.text.trim()) {
-        // An empty note is a misclick; drop it without leaving an undo step behind.
+        // An empty annotation is a misclick; drop it without leaving an undo step behind.
         doc.annotations = doc.annotations.filter((x) => x !== a);
         if (selection?.id === id) selection = null;
       }
@@ -530,7 +578,7 @@ let gesture = null;
 
 viewport.addEventListener("pointerdown", (e) => {
   if (e.target.closest("[contenteditable=true]")) return;
-  if (e.target.closest("header a, header button")) return;
+  if (e.target.closest("header a, header button, .note-x")) return;
   if (editingNote) document.activeElement.blur();
 
   const card = e.target.closest(".card");
@@ -554,7 +602,7 @@ viewport.addEventListener("pointerdown", (e) => {
   if (tool === "note") {
     pushHistory();
     const at = anchorAt(start);
-    const a = { id: uid(), type: "note", at, nx: at.snap ? 28 : 0, ny: at.snap ? 28 : 0, text: "" };
+    const a = { id: uid(), type: "note", at, text: "" };
     doc.annotations.push(a);
     setTool("select");
     select({ kind: "ann", id: a.id });
@@ -613,12 +661,12 @@ viewport.addEventListener("pointermove", (e) => {
     // Dragging an arrow end or a note's pin re-attaches it to whatever is underneath.
     if (gesture.handle === "from" || gesture.handle === "to") a[gesture.handle] = anchorAt(p);
     if (gesture.handle === "pin") {
-      const pin = resolve(a.at);
-      const note = { x: pin.x + a.nx, y: pin.y + a.ny }; // the sticky itself stays put
-      a.at = anchorAt(p);
-      if (!a.at.snap) a.at = { x: p.x, y: p.y };
-      a.nx = note.x - p.x;
-      a.ny = note.y - p.y;
+      // Drop the dot on another element to re-attach; off any element it stays put.
+      const next = anchorAt(p);
+      if (next.snap) {
+        a.at = next;
+        delete a.side; // let the layout pick the nearest side again
+      }
     }
     if (gesture.handle === "corner") {
       const tl = resolve(a.at);
@@ -643,9 +691,8 @@ viewport.addEventListener("pointermove", (e) => {
     } else {
       const a = ann(gesture.id);
       if (a.type === "note" && a.at.snap) {
-        // Moving a pinned note moves the sticky; the pin stays on its element.
-        a.nx += dx;
-        a.ny += dy;
+        // Attached annotations are laid out automatically; dragging only chooses the side.
+        gesture.drag = { x: (gesture.drag?.x || 0) + dx, y: (gesture.drag?.y || 0) + dy };
       } else for (const pt of pointsOf(a)) movePoint(pt, dx, dy);
       renderInk();
     }
@@ -687,6 +734,18 @@ function endGesture() {
       select({ kind: "ann", id: a.id });
       save();
     }
+  } else if (g.type === "move" && g.drag) {
+    const a = ann(g.id);
+    const p = notePos.get(a.id);
+    const at = doc.layout[a.at.snap];
+    const meta = snaps.get(a.at.snap);
+    const side = p.x + g.drag.x + NOTE_W / 2 < at.x + sizeOf(meta).w / 2 ? "left" : "right";
+    if (side !== p.side) {
+      pushHistory(g.before);
+      a.side = side;
+      save();
+    }
+    renderInk();
   } else if ((g.type === "move" || g.type === "handle") && g.moved) {
     pushHistory(g.before);
     save();
@@ -706,6 +765,16 @@ viewport.addEventListener("dblclick", (e) => {
 });
 
 viewport.addEventListener("click", async (e) => {
+  const x = e.target.closest('[data-action="delete-note"]');
+  if (x) {
+    const id = x.closest(".note").dataset.id;
+    pushHistory();
+    doc.annotations = doc.annotations.filter((a) => a.id !== id);
+    if (selection?.id === id) selection = null;
+    render();
+    save();
+    return;
+  }
   const del = e.target.closest('[data-action="delete"]');
   if (!del) return;
   const id = del.closest(".card").dataset.id;
@@ -813,7 +882,20 @@ function selectionBox() {
   if (selection?.kind !== "snap") return null;
   const m = snaps.get(selection.id);
   const at = doc.layout[selection.id];
-  return m && at ? { ...at, ...sizeOf(m) } : null;
+  if (!m || !at) return null;
+  // Include the snapshot's annotation columns so fitting shows them too.
+  const box = { ...at, ...sizeOf(m) };
+  for (const a of doc.annotations) {
+    const p = a.type === "note" && a.at.snap === selection.id && notePos.get(a.id);
+    if (!p) continue;
+    const x = Math.min(box.x, p.x);
+    const y = Math.min(box.y, p.y);
+    box.w = Math.max(box.x + box.w, p.x + NOTE_W) - x;
+    box.h = Math.max(box.y + box.h, p.y + p.h) - y;
+    box.x = x;
+    box.y = y;
+  }
+  return box;
 }
 
 document.querySelectorAll("[data-tool]").forEach((b) => b.addEventListener("click", () => setTool(b.dataset.tool)));
