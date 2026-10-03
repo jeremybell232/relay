@@ -7,7 +7,7 @@
   --accent: #f4f4f5;
   --dot: #d4d4d8;
   --ink: #ef4444;
-  --annot: #ec4899;
+  --annot: #52525b;
   --select: #3b82f6;
   --radius: 8px;
   --dur-fast: 140ms;
@@ -23,6 +23,7 @@
     --border: #27272a;
     --accent: #27272a;
     --dot: #27272a;
+    --annot: #a1a1aa;
     color-scheme: dark;
   }
 }
@@ -76,10 +77,11 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 .selected-shape { stroke: var(--select); }
 .handle { fill: var(--card); stroke: var(--select); pointer-events: all; cursor: crosshair; }
 .tail { fill: var(--ink); }
-.leader { stroke: var(--annot); stroke-linecap: round; fill: none; }
-.pin { fill: var(--annot); pointer-events: all; cursor: grab; }
-.selected-pin { fill: var(--select); }
-#viewport:not([data-tool="select"]) .pin { pointer-events: none; }
+.leader { stroke: var(--annot); stroke-linecap: butt; fill: none; }
+.pin { fill: var(--annot); pointer-events: none; }
+.pin-hit { fill: transparent; pointer-events: all; cursor: grab; }
+.highlight { fill: none; stroke: var(--select); pointer-events: none; }
+#viewport:not([data-tool="select"]) .pin-hit { pointer-events: none; }
 .outline { fill: color-mix(in oklab, var(--select) 8%, transparent); stroke: var(--select); }
 .outline.anchor { fill: none; stroke-dasharray: 4 3; }
 .tag-bg { fill: var(--select); }
@@ -91,7 +93,7 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
   box-shadow: 0 1px 3px #0000001a, 0 10px 30px #0000001f; cursor: default;
 }
 #viewport:not([data-tool="select"]) .note { pointer-events: none; }
-.note.selected { box-shadow: 0 0 0 calc(2px / var(--z, 1)) var(--annot), 0 10px 30px #0000001f; }
+.note.selected { box-shadow: 0 0 0 calc(1.5px / var(--z, 1)) var(--select), 0 10px 30px #0000001f; }
 .note-text { min-height: 24px; white-space: pre-wrap; overflow-wrap: anywhere; outline: none; }
 .note-text[contenteditable="true"] { cursor: text; user-select: text; }
 .note-text:empty::before { content: "Add an annotation"; color: var(--muted-foreground); opacity: 0.7; }

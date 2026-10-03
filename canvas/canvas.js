@@ -386,6 +386,7 @@ function layoutNotes(notes) {
   return pos;
 }
 let hover = null; // { snap, path } under the cursor while a drawing tool is active
+let hoveredNote = null; // annotation card under the pointer: its element gets highlighted
 
 function shapeEls(a, cls = "shape") {
   if (a.type === "arrow") {
@@ -408,6 +409,13 @@ function shapeEls(a, cls = "shape") {
 }
 
 // Outline an element the way a design tool does, with its tag as a label.
+// The thin blue box Figma draws around an annotation's element.
+function highlight(target) {
+  const b = locate(target.snap, target.path);
+  if (!b) return [];
+  return [svg("rect", { x: b.x, y: b.y, width: b.w, height: b.h, class: "highlight", "stroke-width": 1.5 / camera.z })];
+}
+
 function outline(target, cls) {
   const b = locate(target.snap, target.path);
   if (!b) return [];
@@ -433,7 +441,8 @@ function renderInk() {
 
   for (const a of doc.annotations) {
     const selected = selection?.kind === "ann" && selection.id === a.id;
-    if (selected) for (const p of pointsOf(a)) if (p.snap) handlesEl.append(...outline(p, "outline anchor"));
+    const lit = selected || (a.type === "note" && hoveredNote === a.id);
+    if (lit) for (const p of pointsOf(a)) if (p.snap) handlesEl.append(...(a.type === "note" ? highlight(p) : outline(p, "outline anchor")));
 
     if (a.type === "note") continue; // drawn below, once cards can be measured
 
@@ -486,13 +495,16 @@ function renderInk() {
     const pin = resolve(a.at);
     const edge = pin.x > x + NOTE_W / 2 ? x + NOTE_W : x;
     const selected = selection?.kind === "ann" && selection.id === a.id;
-    // Sized with the canvas like the cards, but never thinner than a hairline on screen.
-    const lw = Math.max(2.5, 1.25 / z);
+    // Quiet by design: a thin dashed grey line and a small dot. They scale with the canvas
+    // but never drop below a hairline on screen.
+    const lw = Math.max(1.25, 1 / z);
     shapesEl.append(
-      svg("line", { x1: edge, y1: y + LINE_Y, x2: pin.x, y2: pin.y, class: "leader", "stroke-width": lw, "stroke-dasharray": `0 ${lw * 2.6}` }),
+      svg("line", { x1: edge, y1: y + LINE_Y, x2: pin.x, y2: pin.y, class: "leader", "stroke-width": lw, "stroke-dasharray": `${lw * 4} ${lw * 3}` }),
     );
     handlesEl.append(
-      svg("circle", { cx: pin.x, cy: pin.y, r: Math.max(6, 3 / z), class: selected ? "pin selected-pin" : "pin", "data-handle": "pin", "data-id": a.id }),
+      svg("circle", { cx: pin.x, cy: pin.y, r: Math.max(3, 2.5 / z), class: "pin" }),
+      // The dot is tiny; this invisible ring is what you grab to re-attach it.
+      svg("circle", { cx: pin.x, cy: pin.y, r: 10 / z, class: "pin-hit", "data-handle": "pin", "data-id": a.id }),
     );
   }
 }
@@ -753,6 +765,17 @@ function endGesture() {
 }
 viewport.addEventListener("pointerup", endGesture);
 viewport.addEventListener("pointerleave", () => setHover(null));
+notesEl.addEventListener("pointerover", (e) => {
+  const id = e.target.closest(".note")?.dataset.id || null;
+  if (id !== hoveredNote) {
+    hoveredNote = id;
+    renderInk();
+  }
+});
+notesEl.addEventListener("pointerleave", () => {
+  hoveredNote = null;
+  renderInk();
+});
 viewport.addEventListener("pointercancel", endGesture);
 
 viewport.addEventListener("dblclick", (e) => {
