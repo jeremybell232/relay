@@ -164,7 +164,7 @@ function cardFor(meta) {
   el.style.width = `${w}px`;
   el.innerHTML = `
     <header>
-      <span class="label"></span><span class="path"></span><span class="time"></span>
+      <span class="label"></span><span class="path"></span><span class="size" title="Viewport size when captured"></span><span class="time"></span>
       <a href="/snaps/${meta.id}.html" target="_blank" title="Open the frozen page in a tab">Open</a>
       <button data-action="delete" title="Delete snapshot">Delete</button>
     </header>
@@ -174,6 +174,7 @@ function cardFor(meta) {
     </div>`;
   el.querySelector(".label").textContent = meta.label || meta.title || "Untitled";
   el.querySelector(".path").textContent = pathOf(meta);
+  if (meta.viewport) el.querySelector(".size").textContent = `${meta.viewport.w} × ${meta.viewport.h}`;
   el.querySelector(".time").textContent = timeFmt.format(new Date(meta.createdAt));
   const frame = el.querySelector("iframe");
   // allow-same-origin without allow-scripts: nothing in the page runs, but we can

@@ -87,6 +87,8 @@ The canvas background defaults to `#F5F5F5`. Change it with the swatch in the to
 double-click the swatch to reset it. Annotation cards are white on light backgrounds and switch to a
 dark version on dark ones.
 
+Each snapshot's header shows the viewport size it was captured at (for example `1280 × 800`).
+
 New snapshots appear immediately. Snapshots of the same URL go in the same row; a new URL starts a
 new row.
 
