@@ -352,7 +352,7 @@ const NOTE_W = 280;
 const GUTTER = 48; // between the snapshot frame and its annotation column
 const NOTE_GAP = 12; // between stacked annotations
 const LINE_Y = 28; // where the connector meets the card: the first line of text
-const NOTE_MAX_ZOOM = 1; // past this zoom, cards stop growing on screen
+const NOTE_MAX_ZOOM = 0.8; // past this zoom, cards stop growing on screen
 
 // World-space scale of annotation cards: 1 up to NOTE_MAX_ZOOM, then shrinking in the
 // world exactly as fast as the camera zooms in, so on screen they hold their size.

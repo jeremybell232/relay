@@ -71,7 +71,7 @@ Annotations work like Figma's. Each one is a card in a column just outside the s
 of the frame its element is closer to, joined to it by a thin dashed grey line. The line ends in a small dot on the
 element's edge facing the card. Lines are straight whenever the card can sit level with its element.
 When there isn't room, the line turns 90° in the gap beside the snapshot, with rounded corners.
-Hovering a card outlines its element in thin blue. Cards scale with the canvas up to 100% zoom, then
+Hovering a card outlines its element in thin blue. Cards scale with the canvas up to 80% zoom, then
 hold their size on screen so they never get oversized.
 - Cards are placed automatically; they aren't dragged. In each column they sort top to bottom by
   their element and never overlap. The layout redoes itself as you type, move the snapshot, or
