@@ -1,0 +1,126 @@
+:root {
+  --background: #fafafa;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --muted-foreground: #71717a;
+  --border: #e4e4e7;
+  --accent: #f4f4f5;
+  --dot: #d4d4d8;
+  --ink: #ef4444;
+  --note: #fef08a;
+  --note-fg: #422006;
+  --select: #3b82f6;
+  --radius: 8px;
+  --dur-fast: 140ms;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #09090b;
+    --foreground: #fafafa;
+    --card: #18181b;
+    --muted-foreground: #a1a1aa;
+    --border: #27272a;
+    --accent: #27272a;
+    --dot: #27272a;
+    --note: #fde047;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body { background: var(--background); color: var(--foreground); font: 400 13px/1.4 var(--font-sans); }
+kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
+
+#viewport {
+  position: fixed; inset: 0; overflow: hidden; touch-action: none; user-select: none;
+  background-image: radial-gradient(var(--dot) 1px, transparent 1.2px);
+}
+#viewport[data-tool="select"] { cursor: default; }
+#viewport.panning, #viewport.space { cursor: grab; }
+#viewport.panning { cursor: grabbing; }
+#viewport[data-tool="note"], #viewport[data-tool="arrow"], #viewport[data-tool="box"] { cursor: crosshair; }
+
+#world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#cards, #notes { position: absolute; left: 0; top: 0; }
+#ink { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+
+/* ---- snapshot cards */
+.card {
+  position: absolute; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 1px 2px #0000000d, 0 8px 24px #0000000f; overflow: hidden;
+}
+.card.selected { outline: calc(2px / var(--z, 1)) solid var(--select); outline-offset: calc(2px / var(--z, 1)); }
+.card.live { outline: calc(3px / var(--z, 1)) solid #22c55e; }
+.card header {
+  height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px;
+  border-bottom: 1px solid var(--border); white-space: nowrap; font-size: 15px;
+}
+.card header .label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.card header .path { color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; flex: 1; font-size: 13px; }
+.card header .time { color: var(--muted-foreground); font-size: 13px; }
+.card header a, .card header button {
+  font: 500 13px var(--font-sans); color: var(--muted-foreground); background: none; border: 0; padding: 4px 8px;
+  border-radius: 6px; cursor: pointer; text-decoration: none; transition: background var(--dur-fast);
+}
+.card header a:hover, .card header button:hover { background: var(--accent); color: var(--foreground); }
+.card .frame { position: relative; overflow: hidden; background: #fff; }
+.card iframe { display: block; border: 0; pointer-events: none; }
+.card .shield { position: absolute; inset: 0; }
+.card.live .shield { cursor: ns-resize; }
+
+/* ---- annotations */
+.shape { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; }
+.hit { fill: none; stroke: transparent; pointer-events: stroke; cursor: move; }
+#viewport:not([data-tool="select"]) .hit { pointer-events: none; }
+.selected-shape { stroke: var(--select); }
+.handle { fill: var(--card); stroke: var(--select); pointer-events: all; cursor: crosshair; }
+
+.note {
+  position: absolute; width: 240px; min-height: 120px; padding: 14px 16px; border-radius: 4px;
+  background: var(--note); color: var(--note-fg); font: 500 16px/1.4 var(--font-sans);
+  box-shadow: 0 1px 2px #0000001a, 0 8px 20px #00000014; white-space: pre-wrap; word-wrap: break-word;
+  cursor: move; outline: none;
+}
+#viewport:not([data-tool="select"]) .note { pointer-events: none; }
+.note.selected { box-shadow: 0 0 0 calc(2px / var(--z, 1)) var(--select), 0 8px 20px #00000014; }
+.note[contenteditable="true"] { cursor: text; user-select: text; }
+.note:empty::before { content: "Type a note…"; opacity: 0.45; }
+
+/* ---- chrome */
+.tools {
+  position: fixed; top: 12px; left: 12px; display: flex; align-items: center; gap: 4px; padding: 4px;
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 4px 16px #0000000f;
+}
+.tools button {
+  height: 32px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--foreground); font: 500 13px var(--font-sans); cursor: pointer;
+  transition: background var(--dur-fast);
+}
+.tools button:hover { background: var(--accent); }
+.tools button[aria-pressed="true"] { background: var(--foreground); color: var(--background); }
+.tools .brand { display: flex; align-items: center; gap: 6px; padding: 0 8px; font-weight: 600; }
+.tools .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
+.tools .sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.tools .meta { min-width: 44px; padding: 0 6px; color: var(--muted-foreground); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+
+.hint {
+  position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); padding: 6px 12px; border-radius: 999px;
+  background: var(--card); border: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px;
+  white-space: nowrap; pointer-events: none;
+}
+@media (max-width: 900px) { .hint { display: none; } }
+
+#empty {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: min(520px, calc(100vw - 32px));
+  text-align: center; color: var(--muted-foreground); pointer-events: none;
+}
+#empty .h { color: var(--foreground); font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+#empty code {
+  display: block; margin-top: 12px; padding: 10px 12px; border-radius: 6px; background: var(--card);
+  border: 1px solid var(--border); color: var(--foreground); font: 12px ui-monospace, monospace;
+  user-select: all; pointer-events: auto; overflow-wrap: anywhere;
+}

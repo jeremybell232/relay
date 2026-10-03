@@ -1,0 +1,61 @@
+# relay
+
+Snapshot states of the page you're building on localhost, then lay them out and annotate them on an
+infinite canvas. No dependencies, no build step, nothing committed.
+
+```
+npm link                      # once, from this folder: puts `relay` on your PATH
+cd ~/my-project && relay      # → http://localhost:4400, saves to ./.relay/
+```
+
+Add this to the page while developing:
+
+```html
+<script src="http://localhost:4400/relay.js" defer></script>
+```
+
+A small toolbar appears in the bottom-right corner. Type an optional label, click **Snap** (or press
+**⌥⇧S**), then open **Canvas ↗**. If relay isn't running, the script tag fails quietly.
+
+## What a snapshot is
+
+A frozen copy of the page's HTML, not a screenshot:
+
+- live form values, checkboxes, selects, `<canvas>` pixels and open shadow roots are kept
+- every stylesheet is read from the CSSOM (so CSS-in-JS rules are included), and `@import` and
+  relative `url()`s are resolved
+- same-origin images, background images and fonts are stored inline as data URIs, so a snapshot still
+  renders after the dev server stops
+- scripts and `on*` handlers are removed, and the server also serves snapshots with `script-src 'none'`
+
+Not captured: `:hover`/`:focus` states, iframe contents (shown as a placeholder), and stylesheets
+that can't be read cross-origin (these stay linked, which is how Google Fonts keeps working).
+
+## Canvas
+
+| | |
+|---|---|
+| Scroll / drag empty space / hold space | pan |
+| ⌘-scroll / pinch | zoom |
+| **V** | select and move snapshots and annotations |
+| **N** | sticky note (double-click a note to edit) |
+| **A** | arrow |
+| **R** | highlight box |
+| **F** | fit everything, or the selected snapshot |
+| double-click a snapshot | scroll inside the frozen page (Esc to leave) |
+| ⌫ | delete the selection (deleting a snapshot asks first and can't be undone) |
+| ⌘Z / ⇧⌘Z | undo / redo |
+
+New snapshots appear immediately. Snapshots of the same URL go in the same row; a new URL starts a
+new row.
+
+## Files
+
+```
+.relay/.gitignore        "*": the folder ignores itself, and no tracked file is touched
+.relay/canvas.json       camera, card positions, annotations
+.relay/snaps/<id>.html   frozen page
+.relay/snaps/<id>.json   url, title, label, viewport, scroll position, time
+```
+
+Options: `relay --port 4401 --dir ../other-project`.

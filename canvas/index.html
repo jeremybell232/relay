@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>relay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/canvas.css" />
+  </head>
+  <body>
+    <div id="viewport">
+      <div id="world">
+        <div id="cards"></div>
+        <svg id="ink" width="1" height="1">
+          <defs>
+            <marker id="head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="context-stroke" />
+            </marker>
+          </defs>
+          <g id="shapes"></g>
+          <g id="handles"></g>
+          <g id="draft"></g>
+        </svg>
+        <div id="notes"></div>
+      </div>
+    </div>
+
+    <header class="tools" role="toolbar" aria-label="Tools">
+      <span class="brand"><span class="dot"></span>relay</span>
+      <span class="sep"></span>
+      <button data-tool="select" title="Select & move (V)">Select <kbd>V</kbd></button>
+      <button data-tool="note" title="Sticky note (N)">Note <kbd>N</kbd></button>
+      <button data-tool="arrow" title="Arrow (A)">Arrow <kbd>A</kbd></button>
+      <button data-tool="box" title="Highlight box (R)">Box <kbd>R</kbd></button>
+      <span class="sep"></span>
+      <button id="fit" title="Fit everything (F)">Fit <kbd>F</kbd></button>
+      <span id="zoom" class="meta">100%</span>
+    </header>
+
+    <div id="empty" hidden>
+      <p class="h">No snapshots yet</p>
+      <p>Add this to the page you're working on, then press <kbd>⌥⇧S</kbd> or click <b>Snap</b>:</p>
+      <code id="snippet"></code>
+    </div>
+
+    <footer class="hint">
+      Scroll to pan · ⌘/pinch to zoom · drag empty space to pan · double-click a snapshot to scroll inside it ·
+      ⌫ delete · ⌘Z undo
+    </footer>
+
+    <script type="module" src="/canvas.js"></script>
+  </body>
+</html>
