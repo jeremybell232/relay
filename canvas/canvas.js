@@ -143,11 +143,6 @@ function fit(box = bounds()) {
 function applyCamera() {
   world.style.transform = worldTransform(camera);
   world.style.setProperty("--z", camera.z);
-  // Double the dot spacing as you zoom out so the grid never turns into noise.
-  let g = 24 * camera.z;
-  while (g < 12) g *= 2;
-  viewport.style.backgroundSize = `${g}px ${g}px`;
-  viewport.style.backgroundPosition = `${camera.x}px ${camera.y}px`;
   $("#zoom").textContent = `${Math.round(camera.z * 100)}%`;
   save();
 }
@@ -989,6 +984,37 @@ function selectionBox() {
 document.querySelectorAll("[data-tool]").forEach((b) => b.addEventListener("click", () => setTool(b.dataset.tool)));
 $("#fit").addEventListener("click", () => fit());
 
+// ------------------------------------------------------------------ background
+
+const DEFAULT_BG = "#f5f5f5";
+const bgInput = $("#bg");
+
+// Relative luminance decides whether annotations render in their light or dark version.
+function toneOf(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) < 0.4 ? "dark" : "light";
+}
+
+function applyBackground() {
+  const bg = /^#[0-9a-f]{6}$/i.test(doc.background || "") ? doc.background : DEFAULT_BG;
+  document.documentElement.style.setProperty("--canvas-bg", bg);
+  viewport.dataset.tone = toneOf(bg);
+  bgInput.value = bg;
+}
+
+bgInput.addEventListener("input", () => {
+  doc.background = bgInput.value;
+  applyBackground();
+  save();
+});
+bgInput.closest("label").addEventListener("dblclick", (e) => {
+  e.preventDefault();
+  delete doc.background;
+  applyBackground();
+  save();
+});
+
 // ------------------------------------------------------------------ snapshots in and out
 
 function addSnap(meta, focus = false) {
@@ -1030,6 +1056,7 @@ async function load() {
     snaps.set(meta.id, meta);
     place(meta);
   }
+  applyBackground();
   if (doc.camera) {
     camera = doc.camera;
     applyCamera();
@@ -1040,6 +1067,7 @@ async function load() {
 
 $("#snippet").textContent = `<script src="${location.origin}/relay.js" defer></script>`;
 setTool("select");
+applyBackground();
 applyCamera();
 load().catch((err) => console.error("[relay] failed to load canvas", err));
 

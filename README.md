@@ -82,6 +82,10 @@ With the Annotate, Arrow or Box tool, hovering outlines the element and shows it
 (`button#clear`, `li.item`). Arrow ends and boxes attach to elements the same way. Anything drawn on
 empty canvas stays free. Deleting a snapshot deletes the annotations attached to it.
 
+The canvas background defaults to `#F5F5F5`. Change it with the swatch in the toolbar, and
+double-click the swatch to reset it. Annotation cards are white on light backgrounds and switch to a
+dark version on dark ones.
+
 New snapshots appear immediately. Snapshots of the same URL go in the same row; a new URL starts a
 new row.
 
@@ -89,7 +93,7 @@ new row.
 
 ```
 .relay/.gitignore        "*": the folder ignores itself, and no tracked file is touched
-.relay/canvas.json       camera, card positions, annotations (with their element anchors)
+.relay/canvas.json       background, camera, card positions, annotations (with their element anchors)
 .relay/snaps/<id>.html   frozen page
 .relay/snaps/<id>.json   url, title, label, viewport, scroll position, time
 ```
