@@ -527,9 +527,9 @@ function renderInk() {
     const pin = p.pin || resolve(a.at);
     const edge = pin.x > x + p.w / 2 ? x + p.w : x;
     const selected = selection?.kind === "ann" && selection.id === a.id;
-    // Quiet by design: a thin dashed grey line and a small dot. They scale with the canvas
-    // but never drop below a hairline on screen.
-    const lw = Math.max(1.25, 1 / z);
+    // Quiet by design: a 1px dashed grey line and a small dot, the same size on screen
+    // at every zoom (dividing by z cancels the camera's scale).
+    const lw = 1 / z;
     // Straight when the card is level with its element; otherwise an elbow whose
     // vertical run sits in the gap between the card and the snapshot.
     const mid = p.frameX == null ? null : (edge + p.frameX) / 2;
@@ -542,7 +542,7 @@ function renderInk() {
       }),
     );
     handlesEl.append(
-      svg("circle", { cx: pin.x, cy: pin.y, r: Math.max(3, 2.5 / z), class: "pin" }),
+      svg("circle", { cx: pin.x, cy: pin.y, r: 2.5 / z, class: "pin" }),
       // The dot is tiny; this invisible ring is what you grab to re-attach it.
       svg("circle", { cx: pin.x, cy: pin.y, r: 10 / z, class: "pin-hit", "data-handle": "pin", "data-id": a.id }),
     );
