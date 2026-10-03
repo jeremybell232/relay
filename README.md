@@ -64,7 +64,7 @@ that can't be read cross-origin (these stay linked, which is how Google Fonts ke
 | **R** | click to outline an element, or drag to draw a box tied to the element under the drag start |
 | **F** | fit everything, or the selected snapshot |
 | double-click a snapshot | scroll inside the frozen page (Esc to leave) |
-| ⌫ or right-click | delete an annotation; ⌫ on a snapshot asks first and can't be undone |
+| ⌫, or right-click → Delete | delete an annotation; ⌫ on a snapshot asks first and can't be undone |
 | ⌘Z / ⇧⌘Z | undo / redo |
 
 Annotations work like Figma's. Each one is a card in a column just outside the snapshot, on the side
@@ -76,7 +76,7 @@ Hovering a card outlines its element in thin blue.
   their element and never overlap. The layout redoes itself as you type, move the snapshot, or
   scroll inside it.
 - Drag the dot onto another element to re-attach it.
-- Right-click an annotation (card, arrow or box) to delete it. ⌘Z brings it back.
+- Right-click an annotation (card, arrow or box) and choose **Delete**, or select it and press ⌫. ⌘Z brings it back.
 
 With the Annotate, Arrow or Box tool, hovering outlines the element and shows its tag
 (`button#clear`, `li.item`). Arrow ends and boxes attach to elements the same way. Anything drawn on

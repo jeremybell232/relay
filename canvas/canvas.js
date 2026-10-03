@@ -832,19 +832,45 @@ viewport.addEventListener("click", async (e) => {
   removeSnap(id);
 });
 
-// Right-click an annotation to delete it (⌘Z brings it back).
-viewport.addEventListener("contextmenu", (e) => {
-  const hit = e.target.closest('[data-kind="ann"], [data-handle="pin"]');
-  if (!hit || hit.closest("[contenteditable=true]")) return;
-  e.preventDefault();
-  const id = hit.dataset.id;
+// Right-click an annotation for a small menu with Delete.
+const menu = $("#menu");
+function openMenu(x, y, id) {
+  menu.dataset.id = id;
+  menu.hidden = false;
+  // Keep the menu on screen near the edges.
+  const w = menu.offsetWidth;
+  const h = menu.offsetHeight;
+  menu.style.left = `${Math.min(x, innerWidth - w - 8)}px`;
+  menu.style.top = `${Math.min(y, innerHeight - h - 8)}px`;
+  menu.querySelector("button").focus();
+}
+function closeMenu() {
+  menu.hidden = true;
+}
+function deleteAnnotation(id) {
   pushHistory();
   doc.annotations = doc.annotations.filter((a) => a.id !== id);
   if (selection?.id === id) selection = null;
   if (hoveredNote === id) hoveredNote = null;
   render();
   save();
+}
+viewport.addEventListener("contextmenu", (e) => {
+  const hit = e.target.closest('[data-kind="ann"], [data-handle="pin"]');
+  if (!hit || hit.closest("[contenteditable=true]")) return;
+  e.preventDefault();
+  select({ kind: "ann", id: hit.dataset.id });
+  openMenu(e.clientX, e.clientY, hit.dataset.id);
 });
+menu.addEventListener("click", (e) => {
+  if (e.target.closest('[data-action="delete-annotation"]')) deleteAnnotation(menu.dataset.id);
+  closeMenu();
+});
+addEventListener("pointerdown", (e) => {
+  if (!menu.hidden && !menu.contains(e.target)) closeMenu();
+}, true);
+addEventListener("wheel", () => closeMenu(), { capture: true, passive: true });
+addEventListener("blur", closeMenu);
 
 viewport.addEventListener(
   "wheel",
@@ -911,6 +937,7 @@ addEventListener("keydown", (e) => {
     e.preventDefault();
     return;
   }
+  if (e.key === "Escape" && !menu.hidden) return closeMenu();
   if (e.key === "Escape") {
     setLive(null);
     select(null);
