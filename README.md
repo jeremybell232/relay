@@ -17,6 +17,17 @@ Add this to the page while developing:
 A small toolbar appears in the bottom-right corner. Type an optional label, click **Snap** (or press
 **⌥⇧S**), then open **Canvas ↗**. If relay isn't running, the script tag fails quietly.
 
+## Claude Code skill
+
+`skill/SKILL.md` adds `/relay` to Claude Code. With it, Claude starts relay in the desktop app's
+browser pane, adds a dev-only toolbar tag to your page, takes snapshots for you
+(`/relay snap <label>`), and removes everything again with `/relay off`. Install it by symlinking it,
+so it stays in sync with this repo:
+
+```
+ln -s "$PWD/skill" ~/.claude/skills/relay
+```
+
 ## What a snapshot is
 
 A frozen copy of the page's HTML, not a screenshot:
