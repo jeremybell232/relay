@@ -370,7 +370,10 @@ function layoutNotes(notes) {
     // The dot sits on the element's edge facing the annotation, at its vertical centre.
     const b = locate(a.at.snap, a.at.path);
     const anchor = b ? { x: b.x + b.w / 2, y: b.y + b.h / 2 } : resolve(a.at);
-    const side = a.side || (anchor.x < at.x + sizeOf(meta).w / 2 ? "left" : "right");
+    // Whichever side of the frame the element is closer to.
+    const side = b
+      ? b.x - at.x <= at.x + sizeOf(meta).w - (b.x + b.w) ? "left" : "right"
+      : anchor.x < at.x + sizeOf(meta).w / 2 ? "left" : "right";
     const pin = b ? { x: side === "left" ? b.x : b.x + b.w, y: anchor.y } : anchor;
     const key = `${a.at.snap}|${side}`;
     if (!columns.has(key)) columns.set(key, []);
@@ -510,11 +513,7 @@ function renderInk() {
   for (const a of notes) {
     const p = notePos.get(a.id);
     const el = notesEl.querySelector(`[data-id="${a.id}"]`);
-    let { x, y } = p;
-    if (gesture?.type === "move" && gesture.id === a.id && gesture.drag) {
-      x += gesture.drag.x;
-      y += gesture.drag.y;
-    }
+    const { x, y } = p;
     el.style.transform = `translate(${x}px, ${y}px)`;
     if (!a.at.snap) continue;
     const pin = p.pin || resolve(a.at);
@@ -523,10 +522,9 @@ function renderInk() {
     // Quiet by design: a thin dashed grey line and a small dot. They scale with the canvas
     // but never drop below a hairline on screen.
     const lw = Math.max(1.25, 1 / z);
-    const dragging = gesture?.type === "move" && gesture.id === a.id && gesture.drag;
     // Straight when the card is level with its element; otherwise an elbow whose
     // vertical run sits in the gap between the card and the snapshot.
-    const mid = dragging || p.frameX == null ? null : (edge + p.frameX) / 2;
+    const mid = p.frameX == null ? null : (edge + p.frameX) / 2;
     shapesEl.append(
       svg("path", {
         d: connector(edge, y + LINE_Y, mid, pin.x, pin.y, 12),
@@ -688,6 +686,9 @@ viewport.addEventListener("pointerdown", (e) => {
   const kind = hit.dataset.kind;
   const id = hit.dataset.id;
   select({ kind, id });
+  // Attached annotation cards are placed by the layout, so they select but don't drag.
+  const a = kind === "ann" && ann(id);
+  if (a && a.type === "note" && a.at.snap) return;
   gesture = { type: "move", kind, id, last: start, before: snapshotState(), moved: false };
 });
 
@@ -725,10 +726,7 @@ viewport.addEventListener("pointermove", (e) => {
     if (gesture.handle === "pin") {
       // Drop the dot on another element to re-attach; off any element it stays put.
       const next = anchorAt(p);
-      if (next.snap) {
-        a.at = next;
-        delete a.side; // let the layout pick the nearest side again
-      }
+      if (next.snap) a.at = next;
     }
     if (gesture.handle === "corner") {
       const tl = resolve(a.at);
@@ -752,10 +750,7 @@ viewport.addEventListener("pointermove", (e) => {
       renderInk(); // anchored annotations ride along with their card
     } else {
       const a = ann(gesture.id);
-      if (a.type === "note" && a.at.snap) {
-        // Attached annotations are laid out automatically; dragging only chooses the side.
-        gesture.drag = { x: (gesture.drag?.x || 0) + dx, y: (gesture.drag?.y || 0) + dy };
-      } else for (const pt of pointsOf(a)) movePoint(pt, dx, dy);
+      for (const pt of pointsOf(a)) movePoint(pt, dx, dy);
       renderInk();
     }
   }
@@ -796,18 +791,6 @@ function endGesture() {
       select({ kind: "ann", id: a.id });
       save();
     }
-  } else if (g.type === "move" && g.drag) {
-    const a = ann(g.id);
-    const p = notePos.get(a.id);
-    const at = doc.layout[a.at.snap];
-    const meta = snaps.get(a.at.snap);
-    const side = p.x + g.drag.x + NOTE_W / 2 < at.x + sizeOf(meta).w / 2 ? "left" : "right";
-    if (side !== p.side) {
-      pushHistory(g.before);
-      a.side = side;
-      save();
-    }
-    renderInk();
   } else if ((g.type === "move" || g.type === "handle") && g.moved) {
     pushHistory(g.before);
     save();
@@ -1008,6 +991,7 @@ async function load() {
   doc.annotations = (doc.annotations || [])
     .filter((a) => a && a.id && ["note", "arrow", "box"].includes(a.type))
     .map(migrate)
+    .map(({ side, ...a }) => a) // card sides are always chosen by the layout now
     .filter((a) => a.type !== "note" || a.text.trim()); // an empty note is an abandoned edit
   loaded = true;
   for (const meta of list) {
