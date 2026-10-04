@@ -65,6 +65,9 @@ function openBrowser(url) {
 const DIR = path.join(ROOT_DIR, `${path.basename(ROOT_DIR)}.relay`);
 const SNAPS = path.join(DIR, "snaps");
 const CANVAS = path.join(DIR, "canvas.json");
+// Deleted snapshots wait here so the canvas can undo the delete; cleared after a week.
+const TRASH = path.join(DIR, "trash");
+const TRASH_DAYS = 7;
 const MAX_BODY = 50 * 1024 * 1024;
 const ID_RE = /^[a-z0-9-]+$/;
 
@@ -100,6 +103,11 @@ if (await exists(DIR)) {
 }
 
 await fs.mkdir(SNAPS, { recursive: true });
+await fs.mkdir(TRASH, { recursive: true });
+for (const f of await fs.readdir(TRASH).catch(() => [])) {
+  const st = await fs.stat(path.join(TRASH, f)).catch(() => null);
+  if (st && Date.now() - st.mtimeMs > TRASH_DAYS * 864e5) await fs.rm(path.join(TRASH, f), { force: true });
+}
 // Ignore the whole folder from inside itself, so no tracked file is touched.
 await fs.writeFile(path.join(DIR, ".gitignore"), "*\n", { flag: "wx" }).catch(() => {});
 
@@ -275,10 +283,28 @@ async function handle(req, res) {
   if (del && req.method === "DELETE") {
     const id = del[1];
     if (!ID_RE.test(id)) return send(res, 400, { error: "Bad id" });
-    await Promise.all(["html", "json"].map((ext) => fs.rm(path.join(SNAPS, `${id}.${ext}`), { force: true })));
+    // Into the trash rather than gone, so it can be restored (undo).
+    const now = new Date();
+    for (const ext of ["html", "json"]) {
+      const from = path.join(SNAPS, `${id}.${ext}`);
+      await fs.rename(from, path.join(TRASH, `${id}.${ext}`)).catch(() => {});
+      await fs.utimes(path.join(TRASH, `${id}.${ext}`), now, now).catch(() => {}); // the week starts now
+    }
     broadcast("deleted", { id });
     refreshStaticCanvas();
     return send(res, 200, { ok: true });
+  }
+
+  const restore = p.match(/^\/api\/snapshots\/([^/]+)\/restore$/);
+  if (restore && req.method === "POST") {
+    const id = restore[1];
+    if (!ID_RE.test(id)) return send(res, 400, { error: "Bad id" });
+    for (const ext of ["html", "json"]) await fs.rename(path.join(TRASH, `${id}.${ext}`), path.join(SNAPS, `${id}.${ext}`)).catch(() => {});
+    const meta = await fs.readFile(path.join(SNAPS, `${id}.json`), "utf8").then(JSON.parse).catch(() => null);
+    if (!meta) return send(res, 404, { error: "Not in the trash any more" });
+    broadcast("restored", meta);
+    refreshStaticCanvas();
+    return send(res, 200, meta);
   }
 
   const snap = p.match(/^\/snaps\/([^/]+)\.html$/);

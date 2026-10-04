@@ -112,8 +112,8 @@ that can't be read cross-origin (these stay linked, which is how Google Fonts ke
 | **V** | move snapshots and annotations |
 | **Y** | annotate the element you click (only elements inside a snapshot); Enter saves, Shift+Enter adds a line (double-click to edit) |
 | double-click a snapshot | scroll inside the frozen page (Esc to leave) |
-| ⌫, or right-click → Delete | delete the selected annotation or snapshot (snapshots ask first and can't be undone) |
-| ⌘Z / ⇧⌘Z | undo / redo |
+| ⌫, or right-click → Delete | delete the selected annotation or snapshot, immediately |
+| ⌘Z / ⇧⌘Z (or ⌘Y) | undo / redo: annotations, moves and deleted snapshots (Ctrl on Windows) |
 
 Annotations work like Figma's. Each one is a card in a column just outside the snapshot, on the side
 of the frame its element is closer to, joined to it by a thin dashed grey line. The line ends in a small dot on the
@@ -162,6 +162,7 @@ over automatically.
 <project>.relay/canvas.json       theme, camera, card positions, annotations (with their element anchors)
 <project>.relay/snaps/<id>.html   frozen page
 <project>.relay/snaps/<id>.json   url, title, label, viewport, scroll position, time
+<project>.relay/trash/           deleted snapshots, kept a week so undo can bring them back
 ```
 
 Options: `relay --port 4401 --dir ../other-project --open`.

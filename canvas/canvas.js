@@ -79,7 +79,9 @@ function save() {
 
 const past = [];
 const future = [];
-const snapshotState = () => JSON.stringify({ layout: doc.layout, annotations: doc.annotations });
+// History states include which snapshots exist, so deleting a frame is undoable
+// (the server keeps deleted snapshots in a trash folder for a week).
+const snapshotState = () => JSON.stringify({ layout: doc.layout, annotations: doc.annotations, snaps: [...snaps.keys()] });
 
 // Call before a change, with the state from before it.
 function pushHistory(before = snapshotState()) {
@@ -87,8 +89,20 @@ function pushHistory(before = snapshotState()) {
   if (past.length > 50) past.shift();
   future.length = 0;
 }
-function restore(state) {
+async function restore(state) {
   const s = JSON.parse(state);
+  // Bring back snapshots this state had and delete ones it didn't (undo/redo of deletes).
+  const want = new Set(s.snaps || [...snaps.keys()]);
+  for (const id of want) {
+    if (snaps.has(id)) continue;
+    const meta = await fetch(`/api/snapshots/${id}/restore`, { method: "POST" }).then((r) => (r.ok ? r.json() : null));
+    if (meta) snaps.set(meta.id, meta);
+  }
+  for (const id of [...snaps.keys()]) {
+    if (want.has(id)) continue;
+    await fetch(`/api/snapshots/${id}`, { method: "DELETE" });
+    snaps.delete(id);
+  }
   doc.layout = s.layout;
   doc.annotations = s.annotations;
   selection = null;
@@ -885,11 +899,9 @@ viewport.addEventListener("dblclick", (e) => {
   if (card && !target.closest("header")) setLive(card.dataset.id);
 });
 
-// Deleting a snapshot removes its files, so it asks first (it can't be undone).
+// Deleting a snapshot moves it to the trash; undo restores it.
 async function deleteSnapshot(id) {
-  const n = doc.annotations.filter((a) => snapsOf(a).includes(id)).length;
-  const also = n ? ` and the ${n} annotation${n > 1 ? "s" : ""} attached to it` : "";
-  if (!confirm(`Delete this snapshot${also}? This can't be undone.`)) return;
+  pushHistory(); // ⌘Z brings it back, annotations and all
   await fetch(`/api/snapshots/${id}`, { method: "DELETE" });
   removeSnap(id);
 }
@@ -1222,6 +1234,10 @@ if (!STATIC) {
   events.addEventListener("snapshot", (e) => addSnap(JSON.parse(e.data), true));
   events.addEventListener("canvas", (e) => {
     if (JSON.parse(e.data).tab !== TAB_ID) syncFromServer().catch(() => {});
+  });
+  events.addEventListener("restored", (e) => {
+    const meta = JSON.parse(e.data);
+    if (!snaps.has(meta.id)) addSnap(meta, false);
   });
   events.addEventListener("deleted", (e) => {
     const { id } = JSON.parse(e.data);
