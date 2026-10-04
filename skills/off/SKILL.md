@@ -1,15 +1,15 @@
 ---
-name: relay-off
-description: "Turn the relay snapshot toolbar off for this project: hide it on open pages, remove its code and launch config, and stop the relay server. Use when the user types /relay-off or asks to turn off, remove or disable relay or its toolbar."
+description: "Turn the relay snapshot toolbar off for this project: hide it on open pages, remove its code and launch config, and stop the relay server. Use when the user types /relay:off (or /relay-off) or asks to turn off, remove or disable relay or its toolbar."
 ---
 
-# relay-off
+# relay: off
 
 Be fast: one script call and a one-line reply. Don't read files or explain the mechanics.
 
-1. Run from the session's folder:
+1. Run from the session's folder. `<base directory>` is this skill's folder, shown as "Base
+   directory for this skill" when it loads:
    ```bash
-   node ~/.claude/skills/relay/relay.mjs off
+   node "<base directory>/relay.mjs" off
    ```
    It only touches this session's relay, never other projects' relays or relay's own demo:
    - hides the toolbar on open pages straight away, then stops that relay server;

@@ -1,0 +1,14 @@
+{
+  "name": "relay",
+  "owner": {
+    "name": "Jeremy Bell"
+  },
+  "description": "relay: snapshot localhost page states onto an annotatable infinite canvas.",
+  "plugins": [
+    {
+      "name": "relay",
+      "source": "./",
+      "description": "Snapshot localhost page states onto an annotatable infinite canvas. /relay:on turns it on, /relay:off turns it off."
+    }
+  ]
+}

@@ -27,19 +27,31 @@ npm run demo                  # checklist app â†’ http://localhost:5180, relay â
 there are plenty of states to snapshot. Its snapshots are saved to `example/example.relay/`. Use
 **Reset demo data** in the app's sidebar to start over.
 
-## Claude Code skill
+## Claude Code
 
-`skills/` adds two Claude Code commands, `/relay` and `/relay-off`. With them, Claude starts relay in the desktop app's
-browser pane, adds a dev-only toolbar tag to your page, takes snapshots for you
-(`/relay snap <label>`), and removes everything again with `/relay-off`. Install them by symlinking,
-so they stay in sync with this repo:
+relay comes as a Claude Code plugin with two commands, **`/relay:on`** and **`/relay:off`**. Install it
+from inside Claude Code:
 
 ```
-ln -s "$PWD/skills/relay" ~/.claude/skills/relay
-ln -s "$PWD/skills/relay-off" ~/.claude/skills/relay-off
+/plugin marketplace add jeremybell232/relay
+/plugin install relay@relay
 ```
 
-`/relay` puts the toolbar on every page of the project with as few edits as possible:
+You need Node 18 or newer. To update later, use `/plugin`, open **Installed**, then **Update now**.
+
+- `/relay:on` puts the toolbar on your project's pages, starts relay, and replies in a line.
+- Ask Claude to "snap" a state and it takes the snapshot for you.
+- `/relay:off` removes everything again.
+
+**Working on relay itself?** Link the skills instead, so edits apply straight away. You also get the
+shorter `/relay` and `/relay-off`:
+
+```
+ln -s "$PWD/skills/on" ~/.claude/skills/relay
+ln -s "$PWD/skills/off" ~/.claude/skills/relay-off
+```
+
+`/relay:on` puts the toolbar on every page of the project with as few edits as possible:
 
 | Project | Where the toolbar goes |
 |---|---|
@@ -52,18 +64,18 @@ ln -s "$PWD/skills/relay-off" ~/.claude/skills/relay-off
 
 Pages are found with git's file list, so ignored folders are skipped, as are `node_modules`,
 build output and HTML fragments. Every insertion is dev-only and wrapped in `relay:start`/`relay:end`
-markers. Running `/relay` again picks up new pages, and `/relay-off` removes every insertion,
+markers. Running `/relay:on` again picks up new pages, and `/relay:off` removes every insertion,
 leaving the files exactly as they were. Nuxt has no shared HTML file, so it needs the script added to
 `nuxt.config` by hand.
 
-All of this is done by `skills/relay/relay.mjs` in one run of about 0.25 seconds, including starting
-relay in the background, so `/relay` is a single command and a one-line reply. `/relay-off` stops that
-background relay again. `off` hides the toolbar on open pages immediately and only touches the
+All of this is done by `skills/on/relay.mjs` in one run of about 0.25 seconds, including starting
+relay in the background, so `/relay:on` is a single command and a one-line reply. `/relay:off` stops
+that background relay again. `off` hides the toolbar on open pages immediately and only touches the
 relay that belongs to the current session, so other projects' relays and the demo keep running. You can run it yourself too:
 
 ```
-node ~/.claude/skills/relay/relay.mjs add    # insert the dev-only toolbar + launch configs
-node ~/.claude/skills/relay/relay.mjs off    # remove them again (just this session's relay)
+node skills/on/relay.mjs add    # insert the dev-only toolbar, start relay
+node skills/on/relay.mjs off    # remove it again (just this session's relay)
 ```
 
 ## What a snapshot is
@@ -134,7 +146,7 @@ over automatically.
 - **Not outside a project:** relay won't run from your home folder, Desktop, Documents or Downloads,
   so it never leaves a canvas folder there.
 - **Port:** each project keeps its own. `relay` uses the port in the project's toolbar snippet, and
-  `/relay` picks the first free one.
+  `/relay:on` picks the first free one.
 
 ```
 <project>.relay/canvas.html       open this: live canvas if relay is running, otherwise view only
