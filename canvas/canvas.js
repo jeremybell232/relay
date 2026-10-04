@@ -202,7 +202,7 @@ function cardFor(meta) {
   el.innerHTML = `
     <header>
       <span class="label"></span><span class="path"></span><span class="time"></span>
-      ${VIEW_ONLY ? "" : `<a href="/snaps/${meta.id}.html" target="_blank" title="Open the frozen page in a tab">Open</a>`}
+      ${VIEW_ONLY ? "" : `<a href="/snaps/${meta.id}.html" target="_blank" title="Open this snapshot in a new tab">Preview ↗</a>`}
     </header>
     <div class="frame" style="height:${ph}px">
       <iframe sandbox="allow-same-origin" loading="lazy" scrolling="no" width="${w}" height="${ph}"></iframe>
