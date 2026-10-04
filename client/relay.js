@@ -378,39 +378,55 @@
 
   const grip = $(".grip");
   grip.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
     e.preventDefault();
-    try {
-      grip.setPointerCapture(e.pointerId);
-    } catch {} // synthetic pointers can't be captured
     const start = host.getBoundingClientRect();
     const dx = e.clientX - start.left;
     const dy = e.clientY - start.top;
     host.classList.add("dragging");
     host.style.transition = "none";
+
+    // While dragging, a full-screen layer inside the toolbar catches every move and
+    // release, even over iframes or other things that would otherwise swallow them.
+    const shield = document.createElement("div");
+    shield.style.cssText = "position:fixed;inset:0;z-index:2147483647;cursor:grabbing;background:transparent";
+    root.appendChild(shield);
+
     // Recent pointer positions, to measure the throw's velocity on release.
     const trail = [{ x: e.clientX, y: e.clientY, t: e.timeStamp }];
     trail.start = { x: e.clientX, y: e.clientY };
+    const last = () => trail[trail.length - 1];
+
     const move = (ev) => {
+      if (ev.pointerType === "mouse" && !(ev.buttons & 1)) return finish(ev); // the release was missed
       host.style.left = `${ev.clientX - dx}px`;
       host.style.top = `${ev.clientY - dy}px`;
       trail.push({ x: ev.clientX, y: ev.clientY, t: ev.timeStamp });
       while (trail.length > 2 && ev.timeStamp - trail[0].t > 100) trail.shift();
     };
-    const up = (ev) => {
-      grip.removeEventListener("pointermove", move);
-      grip.removeEventListener("pointerup", up);
-      grip.removeEventListener("pointercancel", up);
+
+    let done = false;
+    const finish = (ev) => {
+      if (done) return; // several signals can end a drag; only the first counts
+      done = true;
+      removeEventListener("pointermove", move, true);
+      removeEventListener("pointerup", finish, true);
+      removeEventListener("pointercancel", finish, true);
+      removeEventListener("blur", finish);
+      shield.remove();
       host.classList.remove("dragging");
+
       // Carry the throw: project where the release velocity would take the grip
       // (like flicking a picture-in-picture window), then take the nearest corner.
+      const end = ev && "clientX" in ev ? { x: ev.clientX, y: ev.clientY, t: ev.timeStamp } : last();
       const first = trail[0];
-      const dt = Math.max(ev.timeStamp - first.t, 1);
-      const recent = ev.timeStamp - trail[trail.length - 1].t < 80; // held still before letting go = no throw
-      const vx = recent ? (ev.clientX - first.x) / dt : 0; // px per ms
-      const vy = recent ? (ev.clientY - first.y) / dt : 0;
+      const dt = Math.max(end.t - first.t, 1);
+      const recent = end.t - last().t < 80; // held still before letting go = no throw
+      const vx = recent ? (end.x - first.x) / dt : 0; // px per ms
+      const vy = recent ? (end.y - first.y) / dt : 0;
       const THROW = 300; // ms of momentum
-      const px = ev.clientX + vx * THROW;
-      const py = ev.clientY + vy * THROW;
+      const px = end.x + vx * THROW;
+      const py = end.y + vy * THROW;
       // A direction you barely moved in keeps its current side (a straight flick up
       // from bottom-right lands top-right, not wherever the grip happens to be).
       const MOVED = 48;
@@ -421,9 +437,12 @@
       store.set("relay:corner", corner);
       place(corner, true);
     };
-    grip.addEventListener("pointermove", move);
-    grip.addEventListener("pointerup", up);
-    grip.addEventListener("pointercancel", up);
+
+    // Listen on the whole window, in the capture phase, so a release anywhere ends it.
+    addEventListener("pointermove", move, true);
+    addEventListener("pointerup", finish, true);
+    addEventListener("pointercancel", finish, true);
+    addEventListener("blur", finish); // switched windows mid-drag
   });
 
   let toastTimer;
