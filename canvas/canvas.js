@@ -165,24 +165,17 @@ function cardFor(meta) {
   el.dataset.id = meta.id;
   const { w } = sizeOf(meta);
   const ph = pageHeight(meta);
-  const vp = { w: meta.viewport?.w || w, h: meta.viewport?.h || 800 };
   el.style.width = `${w}px`;
   el.innerHTML = `
     <header>
       <span class="label"></span><span class="path"></span><span class="size" title="Viewport size when captured"></span><span class="time"></span>
-      <button data-action="toggle-viewport" class="toggle" title="Show or hide what was in the window">Viewport</button>
       <a href="/snaps/${meta.id}.html" target="_blank" title="Open the frozen page in a tab">Open</a>
       <button data-action="delete" title="Delete snapshot">Delete</button>
     </header>
     <div class="frame" style="height:${ph}px">
       <iframe sandbox="allow-same-origin" loading="lazy" scrolling="no" width="${w}" height="${ph}"></iframe>
-      <div class="viewport-mark" title="What was in the window when this was captured"
-        style="left:${meta.scroll?.x || 0}px; top:${meta.scroll?.y || 0}px; width:${vp.w}px; height:${vp.h}px">
-        <span>Viewport · ${vp.w} × ${vp.h}</span>
-      </div>
       <div class="shield"></div>
     </div>`;
-  updateViewportMark(el, meta);
   el.querySelector(".label").textContent = meta.label || meta.title || "Untitled";
   el.querySelector(".path").textContent = pathOf(meta);
   if (meta.viewport) el.querySelector(".size").textContent = `${meta.viewport.w} × ${meta.viewport.h}`;
@@ -200,24 +193,12 @@ function cardFor(meta) {
         pageHeights.set(meta.id, h);
         frame.height = h;
         el.querySelector(".frame").style.height = `${h}px`;
-        updateViewportMark(el, meta);
       }
     } catch {}
     renderInk(); // anchored annotations can now find their elements
   });
   frame.src = `/snaps/${meta.id}.html`;
   return el;
-}
-
-// The viewport box only means something when the page was taller than the window;
-// if the whole page fit on screen, the card already is the viewport.
-function updateViewportMark(card, meta) {
-  const fits = pageHeight(meta) <= (meta.viewport?.h || 0) + 1 && !meta.scroll?.y && !meta.scroll?.x;
-  const on = !doc.layout[meta.id]?.hideViewport;
-  const toggle = card.querySelector('[data-action="toggle-viewport"]');
-  toggle.hidden = fits; // nothing to toggle when the page fit in the window
-  toggle.setAttribute("aria-pressed", String(on));
-  card.querySelector(".viewport-mark").hidden = fits || !on;
 }
 
 // Same-origin iframes inside a snapshot were frozen too; put them back where they were scrolled.
@@ -867,16 +848,6 @@ viewport.addEventListener("dblclick", (e) => {
 });
 
 viewport.addEventListener("click", async (e) => {
-  const toggle = e.target.closest('[data-action="toggle-viewport"]');
-  if (toggle) {
-    const card = toggle.closest(".card");
-    const at = doc.layout[card.dataset.id];
-    if (at.hideViewport) delete at.hideViewport;
-    else at.hideViewport = true;
-    updateViewportMark(card, snaps.get(card.dataset.id));
-    save();
-    return;
-  }
   const del = e.target.closest('[data-action="delete"]');
   if (!del) return;
   const id = del.closest(".card").dataset.id;
@@ -1124,6 +1095,7 @@ async function load() {
     .map(migrate)
     .map(({ side, ...a }) => a) // card sides are always chosen by the layout now
     .filter((a) => a.type !== "note" || a.text.trim()); // an empty note is an abandoned edit
+  for (const at of Object.values(doc.layout)) delete at.hideViewport; // retired setting
   loaded = true;
   for (const meta of list) {
     snaps.set(meta.id, meta);

@@ -90,11 +90,9 @@ The canvas background defaults to `#F5F5F5`. Change it with the swatch in the to
 double-click the swatch to reset it. Annotation cards are white on light backgrounds and switch to a
 dark version on dark ones.
 
-Each card shows the whole page at full height. A dashed blue box labelled
-`Viewport · 1280 × 800` marks the part that was on screen when the snapshot was taken (it's left off when the whole page fit
-in the window). Use the **Viewport** toggle in the card header to hide or show it. Scroll boxes
-inside the page, such as a long list, keep the scroll position they had. Double-click a card to
-scroll them.
+Each card shows the whole page at full height, including everything you'd have to scroll to.
+Scroll boxes inside the page, such as a long list, keep the scroll position they had. Double-click a
+card to scroll them.
 
 New snapshots appear immediately. Snapshots of the same URL go in the same row; a new URL starts a
 new row.
