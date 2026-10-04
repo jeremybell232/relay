@@ -38,6 +38,14 @@ so it stays in sync with this repo:
 ln -s "$PWD/skill" ~/.claude/skills/relay
 ```
 
+The skill's file edits are done by `skill/relay.mjs` in a single run (about 60ms), so `/relay` only
+has to start the servers. You can run it yourself too:
+
+```
+node ~/.claude/skills/relay/relay.mjs add    # insert the dev-only toolbar + launch configs
+node ~/.claude/skills/relay/relay.mjs off    # remove them again
+```
+
 ## What a snapshot is
 
 A frozen copy of the page's HTML, not a screenshot:

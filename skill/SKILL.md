@@ -5,115 +5,73 @@ description: "Add the relay snapshot toolbar to the current project's local page
 
 # relay
 
-Relay is a zero-dependency local server. It serves a toolbar script that
-freezes the page's HTML into `./<project>.relay/snaps/`, and hosts an annotatable canvas at
-`http://localhost:4400`. `<project>.relay/` ignores itself with its own `.gitignore`, so don't edit the
-project's `.gitignore`.
+Relay is a zero-dependency local server. Its toolbar freezes the page's HTML into
+`<project>.relay/snaps/`, and it hosts an annotatable canvas at `http://localhost:4400`. The folder
+ignores itself, so don't edit the project's `.gitignore`.
 
 The argument decides the mode: none or `on` → **Add**, `off` → **Remove**, `snap [label]` → **Snap**.
 
+**Be fast.** Add should take three tool calls: the script, both servers at once, and one check. Don't
+read project files, explore, or ask questions unless the script's output tells you something is
+missing.
+
 ## Add
 
-1. **Find relay.** This skill is installed as a symlink into the relay repo, so the repo is one level
-   above the skill folder:
+1. **Run the script** from the project root. It does all the file work in one go: it finds the entry
+   file, inserts the dev-only toolbar snippet between `relay:start`/`relay:end` markers (skipping it
+   if already there), and merges a `relay` config and, if missing, an app dev-server config into
+   `.claude/launch.json`.
    ```bash
-   cd "$(dirname "$(readlink -f ~/.claude/skills/relay/SKILL.md)")/.." && pwd
+   node ~/.claude/skills/relay/relay.mjs add
    ```
-   Call that absolute path `<RELAY>`. If `<RELAY>/bin/relay.js` is missing, stop and tell the user.
+   It prints JSON: `entry`, `inserted`, `relayPort`, `appConfig`, `appPort`, `notes`. Read `notes`
+   and act on them only if they say something needs doing.
 
-2. **Add a launch config.** Merge this into the project's `.claude/launch.json`, creating the file if
-   needed. Never overwrite other configurations. If 4400 is already used by another config, use 4401
-   in both places, and in the tag in step 3.
-   ```json
-   {
-     "name": "relay",
-     "runtimeExecutable": "node",
-     "runtimeArgs": ["<RELAY>/bin/relay.js", "--port", "4400"],
-     "port": 4400
-   }
-   ```
-   Relay writes `<project>.relay/` into the directory it starts in. That is the project root, which is correct.
+2. **Start both servers in one message**, as two parallel `preview_start` calls:
+   `{name: "relay"}` and `{name: <appConfig>}`. The app tab is the one to check.
 
-3. **Add the toolbar so it only loads in development.** Find the page's entry point. If there are
-   several and it's unclear which one the user means, ask. Always wrap the addition in `relay`
-   markers so Remove can find it, and never add a tag that would load in production. Use the first
-   pattern that fits:
-
-   - **Next.js App Router** (`app/layout.tsx`): import `Script` from `next/script` and put this
-     inside `<body>`:
-     ```tsx
-     {/* relay:start */}
-     {process.env.NODE_ENV === "development" && (
-       <Script src="http://localhost:4400/relay.js" strategy="afterInteractive" />
-     )}
-     {/* relay:end */}
-     ```
-   - **Next.js Pages Router:** the same block in `pages/_app.tsx` (or `_document.tsx`).
-   - **Everything else** (plain HTML, Vite `index.html`, static sites, Babel-in-browser shells):
-     put this just before `</body>`. Because of the hostname check it does nothing once deployed.
-     ```html
-     <!-- relay:start -->
-     <script>
-       if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
-         var s = document.createElement("script");
-         s.src = "http://localhost:4400/relay.js";
-         document.body.appendChild(s);
-       }
-     </script>
-     <!-- relay:end -->
-     ```
-   If a `relay:start` marker is already there, skip this step.
-
-4. **Start the servers.** Run `preview_start` with `{name: "relay"}`, which opens the canvas tab.
-   Then make sure the app itself is running:
-   - if `launch.json` has the app's own dev-server config, `preview_start` it;
-   - otherwise ask which URL the page is served on and open it with `preview_start {url}`.
-
-5. **Verify.** On the app tab, run
+3. **Check once** on the app tab:
    `javascript_tool: !!document.getElementById("__relay-toolbar")`.
-   If it returns `false`, reload once and check again.
-   - If it is still `false`, read the console. A `localhost:4400` connection error means relay isn't
-     running.
-   - A CSP error means the app's Content-Security-Policy needs `http://localhost:4400` in
-     `script-src` and `connect-src` for development.
+   - `true`: done.
+   - `false`: reload that tab once and check again. If it's still false, read the console. A
+     `localhost:<relayPort>` connection error means relay isn't running. A CSP error means the
+     app's Content-Security-Policy needs `http://localhost:<relayPort>` in `script-src` and
+     `connect-src` for development.
+   - If the app didn't start (wrong guessed config), fix that entry in `.claude/launch.json` and
+     retry.
 
-6. **Tell the user** in two or three lines: click **Snap** or press **⌥⇧S** on the page (adding a
-   label is optional), snapshots appear in the relay canvas tab, and they can ask you to "snap" for
-   them.
+4. **Reply in one line**: the toolbar is on the page (**Snap** or **⌥⇧S**), the canvas is in the
+   relay tab, and you can snap for them.
 
 ## Snap (Claude takes the snapshot)
 
-On the app tab, set the state the user describes (click, type, scroll) using the browser tools, then
-run:
+On the app tab, set the state the user describes (click, type, scroll) with the browser tools, then:
 ```js
 document.querySelector("#__relay-toolbar").shadowRoot.querySelector("input").value = "<label>";
 await window.relay.snap();
 ```
-Confirm a new file appeared in `<project>.relay/snaps/`, or check the canvas tab. If relay isn't on the page,
-run **Add** first.
+If relay isn't on the page, run **Add** first.
 
 ## Remove (`/relay off`)
 
-1. Delete the block between `relay:start` and `relay:end`, including the markers, and the
-   `next/script` import if relay was its only user.
-2. Remove the `relay` entry from `.claude/launch.json`. If that leaves the file with an empty
-   `configurations` list, delete the file.
-3. `preview_stop` the relay server if it's running.
-4. Leave `<project>.relay/` alone, since that's the user's canvas, and tell the user it's still there.
+```bash
+node ~/.claude/skills/relay/relay.mjs off
+```
+This removes the snippet and the `relay` launch config. Then `preview_stop` the relay server if it's
+running. The `<project>.relay/` canvas is left in place; mention that it's still there.
 
 ## Notes
 
 - Never delete snapshots or edit `canvas.json` unless the user asks. Snapshots you took for testing
   are the only exception, and you identify them by ID from your own `snap` results, never by
   clearing a folder or deleting every snapshot. Deleting is permanent.
-
-- Snapshots are frozen HTML with styles and same-origin assets inlined and scripts removed. Hover
-  states, iframe contents and stylesheets that can't be read cross-origin aren't captured.
-- The data files are `<project>.relay/canvas.json` (layout and annotations) and `<project>.relay/snaps/<id>.{html,json}`.
-  Read them if the user asks what's on the canvas. An annotation point attached to an element looks
-  like `{snap, path, dx, dy, label}`:
+- Snapshots are frozen HTML of the full page, with styles and same-origin assets inlined and scripts
+  removed. Hover states and stylesheets that can't be read cross-origin aren't captured.
+- The data files are `<project>.relay/canvas.json` (layout and annotations) and
+  `<project>.relay/snaps/<id>.{html,json}`. Read them if the user asks what's on the canvas. An
+  annotation point attached to an element looks like `{snap, path, dx, dy, label}`:
   - `label` is a readable tag such as `button#clear`.
   - `path` has one list of child indices per document. Start at `documentElement` of
-    `<project>.relay/snaps/<snap>.html` and walk down `children`; each extra list continues inside a frozen
-    iframe's `srcdoc`.
+    `<project>.relay/snaps/<snap>.html` and walk down `children`; each extra list continues inside a
+    frozen iframe's `srcdoc`.
   Use this to tell which element in the user's source code a note is about.
