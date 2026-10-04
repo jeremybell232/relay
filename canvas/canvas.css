@@ -56,10 +56,8 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 #ink { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 
 /* ---- snapshot cards */
-.card {
-  position: absolute; background: var(--card); border: 1px solid var(--border); border-radius: 0;
-  box-shadow: 0 1px 2px #0000000d, 0 8px 24px #0000000f;
-}
+/* Frames are flat: no border or shadow until hovered or selected (then an outline). */
+.card { position: absolute; background: var(--card); border: 0; border-radius: 0; }
 /* Size label under a selected frame, Figma-style; same size on screen at any zoom. */
 .card .dims {
   position: absolute; left: 50%; top: 100%; display: none; padding: 4px 6px; border-radius: 4px; white-space: nowrap;
@@ -84,10 +82,10 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
   position: absolute; width: var(--h); height: var(--h); box-sizing: border-box; background: #fff;
   border: calc(1.5px / var(--z, 1)) solid var(--select); pointer-events: none; z-index: 1;
 }
-.card .corners i:nth-child(1) { left: calc(var(--h) / -2 - 1px); top: calc(var(--h) / -2 - 1px); }
-.card .corners i:nth-child(2) { right: calc(var(--h) / -2 - 1px); top: calc(var(--h) / -2 - 1px); }
-.card .corners i:nth-child(3) { left: calc(var(--h) / -2 - 1px); bottom: calc(var(--h) / -2 - 1px); }
-.card .corners i:nth-child(4) { right: calc(var(--h) / -2 - 1px); bottom: calc(var(--h) / -2 - 1px); }
+.card .corners i:nth-child(1) { left: calc(var(--h) / -2 - 1px / var(--z, 1)); top: calc(var(--h) / -2 - 1px / var(--z, 1)); }
+.card .corners i:nth-child(2) { right: calc(var(--h) / -2 - 1px / var(--z, 1)); top: calc(var(--h) / -2 - 1px / var(--z, 1)); }
+.card .corners i:nth-child(3) { left: calc(var(--h) / -2 - 1px / var(--z, 1)); bottom: calc(var(--h) / -2 - 1px / var(--z, 1)); }
+.card .corners i:nth-child(4) { right: calc(var(--h) / -2 - 1px / var(--z, 1)); bottom: calc(var(--h) / -2 - 1px / var(--z, 1)); }
 .card.live { outline: calc(2px / var(--z, 1)) solid #22c55e; outline-offset: 0; }
 .card header {
   height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px;

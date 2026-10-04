@@ -282,7 +282,7 @@ const svg = (tag, attrs) => {
 // the last resolved point relative to the card, for cards whose frame hasn't
 // loaded yet. Frozen pages never change, so the path stays valid forever.
 
-const INSET = { x: 1, y: HEADER + 1 }; // card border + header: where the frozen page starts
+const INSET = { x: 0, y: HEADER }; // the header sits above the frozen page; frames have no border
 
 function frameDoc(frame) {
   try {
@@ -966,8 +966,8 @@ function scrollInside(card, e, dx, dy) {
   const at = doc.layout[card.dataset.id];
   const p = toWorld(e);
   let win = card.querySelector("iframe").contentWindow;
-  let x = p.x - at.x - 1;
-  let y = p.y - at.y - HEADER - 1;
+  let x = p.x - at.x - INSET.x;
+  let y = p.y - at.y - INSET.y;
   try {
     for (let el = win.document.elementFromPoint(x, y); el?.localName === "iframe" && el.contentWindow; ) {
       const r = el.getBoundingClientRect();
