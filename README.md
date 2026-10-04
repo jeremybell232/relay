@@ -29,23 +29,23 @@ there are plenty of states to snapshot. Its snapshots are saved to `example/exam
 
 ## Claude Code skill
 
-`skill/SKILL.md` adds `/relay` to Claude Code. With it, Claude starts relay in the desktop app's
+`skills/` adds two Claude Code commands, `/relay` and `/relay-off`. With them, Claude starts relay in the desktop app's
 browser pane, adds a dev-only toolbar tag to your page, takes snapshots for you
-(`/relay snap <label>`), and removes everything again with `/relay off`. Install it by symlinking it,
-so it stays in sync with this repo:
+(`/relay snap <label>`), and removes everything again with `/relay-off`. Install them by symlinking,
+so they stay in sync with this repo:
 
 ```
-ln -s "$PWD/skill" ~/.claude/skills/relay
+ln -s "$PWD/skills/relay" ~/.claude/skills/relay
+ln -s "$PWD/skills/relay-off" ~/.claude/skills/relay-off
 ```
 
-The skill's file edits are done by `skill/relay.mjs` in a single run (about 60ms), so `/relay` only
-has to start the servers. `off` hides the toolbar on open pages immediately. If the current folder
-isn't the one relay was added to, it asks the running relay server which project it belongs to and
-cleans up there. You can run it yourself too:
+The skills' file edits are done by `skills/relay/relay.mjs` in a single run (about 60ms), so `/relay` only
+has to start the servers. `off` hides the toolbar on open pages immediately and only touches the
+relay that belongs to the current session, so other projects' relays and the demo keep running. You can run it yourself too:
 
 ```
 node ~/.claude/skills/relay/relay.mjs add    # insert the dev-only toolbar + launch configs
-node ~/.claude/skills/relay/relay.mjs off    # remove them again; works from any folder
+node ~/.claude/skills/relay/relay.mjs off    # remove them again (just this session's relay)
 ```
 
 ## What a snapshot is

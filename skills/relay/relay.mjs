@@ -6,19 +6,24 @@
 //   node ~/.claude/skills/relay/relay.mjs off   [--dir .]   remove them again
 //
 // Prints one JSON object describing what it did. Node resolves this file through
-// the skill symlink, so ../bin/relay.js is the real relay checkout.
+// the skill symlink, so ../../bin/relay.js is the real relay checkout.
+//
+// The relay launch config goes in the *session's* .claude/launch.json (the folder
+// Claude was opened in), with --dir pointing at the project, so it also works when
+// a session is opened somewhere other than the project itself.
 
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import net from "node:net";
 
-const RELAY_BIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../bin/relay.js");
+const RELAY_BIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../bin/relay.js");
 const args = process.argv.slice(2);
 const cmd = args[0] || "add";
 const dirFlag = args.indexOf("--dir");
 const ROOT = path.resolve(dirFlag >= 0 ? args[dirFlag + 1] : process.cwd());
-const LAUNCH = path.join(ROOT, ".claude", "launch.json");
+const SESSION = process.cwd();
+const LAUNCH = path.join(SESSION, ".claude", "launch.json");
 const START = "relay:start";
 
 const read = (p) => fs.readFile(p, "utf8").catch(() => null);
@@ -109,17 +114,24 @@ async function add() {
   const others = cfg.configurations.filter((c) => c.name !== "relay");
   const used = new Set(others.map((c) => c.port));
   out.relayPort = await pickPort(used);
-  const relay = { name: "relay", runtimeExecutable: "node", runtimeArgs: [RELAY_BIN, "--port", String(out.relayPort)], port: out.relayPort };
+  const relay = {
+    name: "relay",
+    runtimeExecutable: "node",
+    runtimeArgs: [RELAY_BIN, "--port", String(out.relayPort), "--dir", ROOT],
+    port: out.relayPort,
+  };
   let app = others[0];
-  if (!app) {
+  if (!app && SESSION !== ROOT) {
+    out.notes.push(`This session is open in ${SESSION}, not the project; start the app's dev server yourself or open it with preview_start {url}.`);
+  } else if (!app) {
     app = await guessAppConfig();
     out.addedAppConfig = true;
     out.notes.push(`Added a guessed "app" dev-server config (${app.runtimeExecutable} ${app.runtimeArgs.join(" ")}, port ${app.port}); check it if the app doesn't open.`);
   }
   cfg.configurations = [...(out.addedAppConfig ? [app] : others), relay];
   await writeLaunch(cfg);
-  out.appConfig = app.name;
-  out.appPort = app.port;
+  out.appConfig = app?.name || null;
+  out.appPort = app?.port || null;
 
   // 2. the toolbar snippet
   const found = [];
@@ -220,32 +232,41 @@ async function removeFrom(root) {
 }
 
 async function off() {
-  const out = { root: ROOT, removedFrom: [], launchUpdated: false, toolbarsHidden: 0, servers: [], found: false, notes: [] };
+  const out = { root: ROOT, removedFrom: [], launchUpdated: false, toolbarsHidden: 0, turnedOff: [], found: false, notes: [] };
   const servers = await runningServers();
-  out.servers = servers.map((s) => ({ port: s.port, root: s.root }));
+
+  // Only the relay that belongs here: the one this session's launch config starts,
+  // or one serving this folder. Other projects' relays (and the demo) are left alone.
+  const cfg = JSON.parse((await read(LAUNCH)) || "null");
+  const myPorts = new Set((cfg?.configurations || []).filter((c) => c.name === "relay").map((c) => c.port));
+  let targets = servers.filter((s) => s.root === ROOT || myPorts.has(s.port));
+  if (!targets.length && dirFlag < 0 && servers.length === 1) targets = servers; // the only one running
+  if (!targets.length && servers.length > 1)
+    out.notes.push(`Several relays are running (${servers.map((s) => `${s.root} on ${s.port}`).join("; ")}) and none belongs to this folder. Run off with --dir <project>.`);
+  out.turnedOff = targets.map((s) => ({ port: s.port, root: s.root }));
 
   // 1. Take toolbars off open pages immediately.
-  for (const s of servers) {
+  for (const s of targets) {
     try {
       const r = await fetch(`http://localhost:${s.port}/api/off`, { method: "POST", signal: AbortSignal.timeout(400) }).then((r) => r.json());
       out.toolbarsHidden += r.pages || 0;
     } catch {}
   }
 
-  // 2. Remove the snippet + launch config: here, or wherever a running relay says it's serving.
-  const roots = [ROOT];
-  if (dirFlag < 0) for (const s of servers) if (!roots.includes(s.root)) roots.push(s.root);
+  // 2. Remove the snippet from the project(s), and the relay entry from launch configs.
+  const roots = [...new Set([ROOT, ...targets.map((s) => s.root)])];
   for (const root of roots) {
     const r = await removeFrom(root);
     out.removedFrom.push(...r.removed);
     out.launchUpdated ||= r.launchUpdated;
   }
-  out.found = out.removedFrom.length > 0 || out.launchUpdated || servers.length > 0;
+  if (!roots.includes(SESSION)) out.launchUpdated ||= (await removeFrom(SESSION)).launchUpdated;
 
+  out.found = out.removedFrom.length > 0 || out.launchUpdated || targets.length > 0;
   const demo = path.resolve(path.dirname(RELAY_BIN), "../example");
-  if (servers.some((s) => s.root === demo)) out.notes.push("relay's own demo adds the toolbar when it serves the page; stop `npm run demo` to turn it off for good.");
-  if (!out.found) out.notes.push(`relay isn't set up in ${ROOT} and no relay server is running, so there was nothing to turn off.`);
-  else out.notes.push("The <project>.relay/ canvas folder was left in place.");
+  if (targets.some((s) => s.root === demo)) out.notes.push("relay's own demo adds the toolbar when it serves the page; stop `npm run demo` to turn it off for good.");
+  if (!out.found && !out.notes.length) out.notes.push(`relay isn't set up in ${ROOT} and no relay server is running, so there was nothing to turn off.`);
+  else if (out.found) out.notes.push("The <project>.relay/ canvas folder was left in place.");
   return out;
 }
 

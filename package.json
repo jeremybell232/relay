@@ -10,7 +10,7 @@
     "bin",
     "client",
     "canvas",
-    "skill"
+    "skills"
   ],
   "engines": {
     "node": ">=18"
