@@ -1084,7 +1084,9 @@ for (const el of document.querySelectorAll(".toolbar [data-tip]")) {
     tip.hidden = false;
     const r = el.getBoundingClientRect();
     tip.style.left = `${Math.max(8, r.left + r.width / 2 - tip.offsetWidth / 2)}px`;
-    tip.style.top = `${r.top - tip.offsetHeight - 9}px`;
+    // Measured from the toolbar's edge (not the button's), so the tail clears the bar.
+    const bar = el.closest(".toolbar").getBoundingClientRect();
+    tip.style.top = `${bar.top - tip.offsetHeight - 11}px`;
   });
   el.addEventListener("pointerleave", () => (tip.hidden = true));
 }
