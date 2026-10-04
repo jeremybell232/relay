@@ -1110,12 +1110,11 @@ for (const el of document.querySelectorAll(".toolbar [data-tip]")) {
   el.addEventListener("pointerleave", () => (tip.hidden = true));
 }
 
-// Project name in the top-left chip (and the tab title).
+// Project name in the tab title.
 (async () => {
   const root = STATIC ? STATIC.root : (await fetch("/api/info").then((r) => r.json()).catch(() => null))?.root;
   if (!root) return;
   const name = root.split(/[\\/]/).filter(Boolean).pop();
-  $("#project-name").textContent = name;
   document.title = `${name} · relay`;
 })();
 

@@ -154,16 +154,10 @@ body.is-view-only .toolbar [data-tool], body.is-view-only .toolbar .divider:firs
 }
 .menu button:hover, .menu button:focus-visible { background: var(--accent); outline: none; }
 
-/* ---- chrome: Figma-flavoured. A project chip top left, a floating tool bar
-   bottom centre, dark tooltips with the shortcut. */
+/* ---- chrome: Figma-flavoured. A floating tool bar bottom centre, dark tooltips
+   with the shortcut. */
 :root { --figma-blue: #0d99ff; --chrome-shadow: 0 0 0.5px #0000004d, 0 1px 3px #00000014, 0 4px 12px #00000014; }
 
-.project {
-  position: fixed; top: 12px; left: 12px; height: 36px; display: flex; align-items: center; gap: 8px;
-  padding: 0 12px 0 10px; border-radius: 10px; background: var(--card); box-shadow: var(--chrome-shadow);
-  font: 600 12px var(--font-sans); letter-spacing: -0.005em; color: var(--foreground); user-select: none;
-}
-.project .mark { width: 18px; height: 18px; color: var(--foreground); flex: none; }
 
 /* Figma UI3's dark tool bar: 38px tools with 8px corners on #2c2c2c, white icons,
    Figma blue for the active tool, hairline dividers. */
