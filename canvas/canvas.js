@@ -188,8 +188,7 @@ function cardFor(meta) {
   el.innerHTML = `
     <header>
       <span class="label"></span><span class="path"></span><span class="time"></span>
-      ${VIEW_ONLY ? "" : `<a href="/snaps/${meta.id}.html" target="_blank" title="Open the frozen page in a tab">Open</a>
-      <button data-action="delete" title="Delete snapshot">Delete</button>`}
+      ${VIEW_ONLY ? "" : `<a href="/snaps/${meta.id}.html" target="_blank" title="Open the frozen page in a tab">Open</a>`}
     </header>
     <div class="frame" style="height:${ph}px">
       <iframe sandbox="allow-same-origin" loading="lazy" scrolling="no" width="${w}" height="${ph}"></iframe>
@@ -886,20 +885,19 @@ viewport.addEventListener("dblclick", (e) => {
   if (card && !target.closest("header")) setLive(card.dataset.id);
 });
 
-viewport.addEventListener("click", async (e) => {
-  const del = e.target.closest('[data-action="delete"]');
-  if (!del) return;
-  const id = del.closest(".card").dataset.id;
+// Deleting a snapshot removes its files, so it asks first (it can't be undone).
+async function deleteSnapshot(id) {
   const n = doc.annotations.filter((a) => snapsOf(a).includes(id)).length;
   const also = n ? ` and the ${n} annotation${n > 1 ? "s" : ""} attached to it` : "";
   if (!confirm(`Delete this snapshot${also}? This can't be undone.`)) return;
   await fetch(`/api/snapshots/${id}`, { method: "DELETE" });
   removeSnap(id);
-});
+}
 
-// Right-click an annotation for a small menu with Delete.
+// Right-click an annotation or a snapshot for a small menu with Delete.
 const menu = $("#menu");
-function openMenu(x, y, id) {
+function openMenu(x, y, kind, id) {
+  menu.dataset.kind = kind;
   menu.dataset.id = id;
   menu.hidden = false;
   // Keep the menu on screen near the edges.
@@ -922,15 +920,21 @@ function deleteAnnotation(id) {
 }
 viewport.addEventListener("contextmenu", (e) => {
   if (VIEW_ONLY) return;
-  const hit = e.target.closest('[data-kind="ann"], [data-handle="pin"]');
-  if (!hit || hit.closest("[contenteditable=true]")) return;
+  if (e.target.closest("[contenteditable=true], header a")) return;
+  const hit = e.target.closest('[data-kind="ann"], [data-handle="pin"], .card');
+  if (!hit) return;
   e.preventDefault();
-  select({ kind: "ann", id: hit.dataset.id });
-  openMenu(e.clientX, e.clientY, hit.dataset.id);
+  const kind = hit.classList.contains("card") ? "snap" : "ann";
+  select({ kind, id: hit.dataset.id });
+  openMenu(e.clientX, e.clientY, kind, hit.dataset.id);
 });
 menu.addEventListener("click", (e) => {
-  if (e.target.closest('[data-action="delete-annotation"]')) deleteAnnotation(menu.dataset.id);
+  const del = e.target.closest('[data-action="delete-annotation"]');
+  const { kind, id } = menu.dataset;
   closeMenu();
+  if (!del) return;
+  if (kind === "snap") deleteSnapshot(id);
+  else deleteAnnotation(id);
 });
 addEventListener("pointerdown", (e) => {
   if (!menu.hidden && !menu.contains(e.target)) closeMenu();
@@ -1044,7 +1048,7 @@ addEventListener("keydown", (e) => {
       select(null);
       save();
     } else {
-      cardsEl.querySelector(`[data-id="${selection.id}"] [data-action="delete"]`)?.click();
+      deleteSnapshot(selection.id);
     }
   }
 });
