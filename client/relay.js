@@ -316,16 +316,19 @@
       <span class="sep hide"></span>
       <input class="hide" placeholder="Name this state" aria-label="Snapshot name (optional)" />
       <button class="snap hide" title="Snapshot this page state (⌥⇧S)">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M8.5 6.5 9.6 4.8A1.5 1.5 0 0 1 10.85 4.1h2.3a1.5 1.5 0 0 1 1.25.7l1.1 1.7h2.75A2.25 2.25 0 0 1 20.5 8.75v8.5a2.25 2.25 0 0 1-2.25 2.25H5.75A2.25 2.25 0 0 1 3.5 17.25v-8.5A2.25 2.25 0 0 1 5.75 6.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
-          <circle cx="12" cy="12.75" r="3.25" fill="none" stroke="currentColor" stroke-width="1.5" />
+        <!-- Lucide: camera -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" />
+          <circle cx="12" cy="13" r="3" />
         </svg>
         Snap <kbd>⌥⇧S</kbd>
       </button>
       <a class="icon hide canvas-link" href="${SERVER}/" target="${CANVAS_TAB}" title="Open the canvas" aria-label="Open the canvas">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="3.75" y="3.75" width="16.5" height="16.5" rx="3.25" fill="none" stroke="currentColor" stroke-width="1.5" />
-          <path d="M10 14l5.25-5.25M10.5 8.75h4.75v4.75" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        <!-- Lucide: square-arrow-out-up-right -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6" />
+          <path d="m21 3-9 9" />
+          <path d="M15 3h6v6" />
         </svg>
       </a>
     </div>`;

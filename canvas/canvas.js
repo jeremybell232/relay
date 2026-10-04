@@ -1027,7 +1027,7 @@ addEventListener("keydown", (e) => {
     setTool("select");
     return;
   }
-  const tools = { v: "select", n: "note" };
+  const tools = { v: "select", y: "note" };
   if (tools[e.key.toLowerCase()]) return setTool(tools[e.key.toLowerCase()]);
   if (e.key.toLowerCase() === "f") return fit(selectionBox() || bounds());
   if ((e.key === "Backspace" || e.key === "Delete") && selection) {
