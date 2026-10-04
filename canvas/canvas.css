@@ -68,7 +68,6 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
   pointer-events: none;
 }
 .card.selected .dims { display: block; }
-.card .dims span { color: #ffffffb3; }
 /* Figma-style frame outline: a stroke hugging the outside edge, no gap. Shown on
    hover (with the Move tool) and when selected; constant width on screen. */
 .card.selected,
