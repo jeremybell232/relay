@@ -368,7 +368,7 @@
     const { width, height } = host.getBoundingClientRect();
     const left = corner.endsWith("left") ? MARGIN : innerWidth - width - MARGIN;
     const top = corner.startsWith("top") ? MARGIN : innerHeight - height - MARGIN;
-    host.style.transition = animate ? "left 220ms cubic-bezier(.2,.8,.2,1), top 220ms cubic-bezier(.2,.8,.2,1)" : "none";
+    host.style.transition = animate ? "left 280ms cubic-bezier(.2,.8,.2,1), top 280ms cubic-bezier(.2,.8,.2,1)" : "none";
     host.style.left = `${left}px`;
     host.style.top = `${top}px`;
     host.dataset.corner = corner;
@@ -379,23 +379,45 @@
   const grip = $(".grip");
   grip.addEventListener("pointerdown", (e) => {
     e.preventDefault();
-    grip.setPointerCapture(e.pointerId);
+    try {
+      grip.setPointerCapture(e.pointerId);
+    } catch {} // synthetic pointers can't be captured
     const start = host.getBoundingClientRect();
     const dx = e.clientX - start.left;
     const dy = e.clientY - start.top;
     host.classList.add("dragging");
     host.style.transition = "none";
+    // Recent pointer positions, to measure the throw's velocity on release.
+    const trail = [{ x: e.clientX, y: e.clientY, t: e.timeStamp }];
+    trail.start = { x: e.clientX, y: e.clientY };
     const move = (ev) => {
       host.style.left = `${ev.clientX - dx}px`;
       host.style.top = `${ev.clientY - dy}px`;
+      trail.push({ x: ev.clientX, y: ev.clientY, t: ev.timeStamp });
+      while (trail.length > 2 && ev.timeStamp - trail[0].t > 100) trail.shift();
     };
     const up = (ev) => {
       grip.removeEventListener("pointermove", move);
       grip.removeEventListener("pointerup", up);
       grip.removeEventListener("pointercancel", up);
       host.classList.remove("dragging");
-      // The corner nearest to where you let go of the grip.
-      corner = `${ev.clientY < innerHeight / 2 ? "top" : "bottom"}-${ev.clientX < innerWidth / 2 ? "left" : "right"}`;
+      // Carry the throw: project where the release velocity would take the grip
+      // (like flicking a picture-in-picture window), then take the nearest corner.
+      const first = trail[0];
+      const dt = Math.max(ev.timeStamp - first.t, 1);
+      const recent = ev.timeStamp - trail[trail.length - 1].t < 80; // held still before letting go = no throw
+      const vx = recent ? (ev.clientX - first.x) / dt : 0; // px per ms
+      const vy = recent ? (ev.clientY - first.y) / dt : 0;
+      const THROW = 300; // ms of momentum
+      const px = ev.clientX + vx * THROW;
+      const py = ev.clientY + vy * THROW;
+      // A direction you barely moved in keeps its current side (a straight flick up
+      // from bottom-right lands top-right, not wherever the grip happens to be).
+      const MOVED = 48;
+      const [vSide, hSide] = corner.split("-");
+      const v = Math.abs(py - trail.start.y) < MOVED ? vSide : py < innerHeight / 2 ? "top" : "bottom";
+      const h = Math.abs(px - trail.start.x) < MOVED ? hSide : px < innerWidth / 2 ? "left" : "right";
+      corner = `${v}-${h}`;
       store.set("relay:corner", corner);
       place(corner, true);
     };
