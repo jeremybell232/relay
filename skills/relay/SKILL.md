@@ -1,6 +1,6 @@
 ---
 name: relay
-description: "Add the relay snapshot toolbar to the current project's local page and open the relay canvas in the browser pane. Use when the user types /relay or /relay off, or asks to add or remove relay, snapshot or 'snap' the current page state, or open the relay canvas."
+description: "Add the relay snapshot toolbar to the current project's local page and open the relay canvas in the browser pane. Use when the user types /relay, or asks to add relay, snapshot or 'snap' the current page state, or open the relay canvas. To turn relay off, use /relay-off."
 ---
 
 # relay
