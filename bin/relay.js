@@ -29,6 +29,10 @@ Add to the page you're developing:
   process.exit(0);
 }
 
+// Which version of relay's code this server is running (its file's modification
+// time), so /relay:relay-on can spot a stale server and restart it.
+const CODE_VERSION = String((await fs.stat(fileURLToPath(import.meta.url))).mtimeMs);
+
 const ROOT_DIR = path.resolve(flag("dir", process.cwd()));
 const OPEN = args.includes("--open");
 
@@ -240,7 +244,7 @@ async function handle(req, res) {
   }
 
   // Lets `relay.mjs off` find which project this server belongs to.
-  if (p === "/api/info") return send(res, 200, { root: ROOT_DIR, dir: DIR, port: PORT });
+  if (p === "/api/info") return send(res, 200, { root: ROOT_DIR, dir: DIR, port: PORT, code: CODE_VERSION });
 
   // Tells every open page to take its toolbar down right away.
   if (p === "/api/off" && req.method === "POST") {

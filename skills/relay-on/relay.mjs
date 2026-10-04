@@ -225,7 +225,17 @@ const relayAt = (port) =>
 
 // Start relay in the background (it outlives this script) and wait until it answers.
 async function startRelay(port) {
-  if ((await relayAt(port))?.root === ROOT) return "already running";
+  const running = await relayAt(port);
+  if (running?.root === ROOT) {
+    // Running for this project — but on the current code? If relay was updated since it
+    // started, restart it so the canvas and server agree (e.g. undoing a deleted frame).
+    const current = String((await fs.stat(RELAY_BIN)).mtimeMs);
+    if (running.code === current) return "already running";
+    await fetch(`http://localhost:${port}/api/shutdown`, { method: "POST", signal: AbortSignal.timeout(800) }).catch(() => {});
+    for (let i = 0; i < 40 && (await listening(port)); i++) await new Promise((r) => setTimeout(r, 50));
+    if (await listening(port)) return "failed";
+    out_restarted = true;
+  }
   const log = await fs.open(path.join(os.tmpdir(), `relay-${port}.log`), "a");
   spawn(process.execPath, [RELAY_BIN, "--port", String(port), "--dir", ROOT], {
     cwd: ROOT,
@@ -234,10 +244,11 @@ async function startRelay(port) {
   }).unref();
   for (let i = 0; i < 60; i++) {
     await new Promise((r) => setTimeout(r, 50));
-    if ((await relayAt(port))?.root === ROOT) return "started";
+    if ((await relayAt(port))?.root === ROOT) return out_restarted ? "restarted (was running older code)" : "started";
   }
   return "failed";
 }
+let out_restarted = false;
 
 // ---------------------------------------------------------------- update check
 //
