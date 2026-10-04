@@ -376,6 +376,23 @@
         </svg>
       </span>
       <span class="sep"></span>
+      <input placeholder="Name this state" aria-label="Snapshot name (optional)" />
+      <button class="icon snap" aria-label="Snap this page state" data-tip="Snap" data-key="⌥⇧S">
+        <!-- Lucide: camera -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" />
+          <circle cx="12" cy="13" r="3" />
+        </svg>
+      </button>
+      <a class="icon canvas-link" href="${SERVER}/" target="${CANVAS_TAB}" aria-label="Open the canvas" data-tip="Open canvas">
+        <!-- Lucide: square-arrow-out-up-right -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6" />
+          <path d="m21 3-9 9" />
+          <path d="M15 3h6v6" />
+        </svg>
+      </a>
+      <span class="sep"></span>
       <span class="devices" role="group" aria-label="Screen size">
         <button class="device" data-device="desktop" aria-label="Desktop" data-tip="Desktop">
           <!-- Lucide: monitor -->
@@ -396,23 +413,6 @@
           </svg>
         </button>
       </span>
-      <span class="sep"></span>
-      <input placeholder="Name this state" aria-label="Snapshot name (optional)" />
-      <button class="icon snap" aria-label="Snap this page state" data-tip="Snap" data-key="⌥⇧S">
-        <!-- Lucide: camera -->
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" />
-          <circle cx="12" cy="13" r="3" />
-        </svg>
-      </button>
-      <a class="icon canvas-link" href="${SERVER}/" target="${CANVAS_TAB}" aria-label="Open the canvas" data-tip="Open canvas">
-        <!-- Lucide: square-arrow-out-up-right -->
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6" />
-          <path d="m21 3-9 9" />
-          <path d="M15 3h6v6" />
-        </svg>
-      </a>
     </div>`;
 
   const $ = (s) => root.querySelector(s);
