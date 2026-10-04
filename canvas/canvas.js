@@ -443,36 +443,35 @@ function layoutNotes(notes) {
     columns.get(key).push({ a, pin, h, at, meta, side });
   }
   for (const column of columns.values()) {
-    // Every card wants to sit level with its element so its connector is straight.
-    // Cards that would overlap merge into a block centred on what its members want,
-    // which keeps as many connectors straight as the space allows.
+    // A card's dashed line runs straight across when the element's height falls within
+    // the card, so each card has a range it can slide in: from its bottom just reaching
+    // the element (lo) to its top just reaching it (hi). Prefer the first line of text
+    // level with the element, then nudge cards apart within those ranges.
     column.sort((p, q) => p.pin.y - q.pin.y || p.pin.x - q.pin.x);
-    const blocks = [];
-    for (const item of column) {
-      item.want = item.pin.y - LINE_Y * noteScale();
-      blocks.push({ items: [item], top: item.want, height: item.h });
-      while (blocks.length > 1) {
-        const prev = blocks[blocks.length - 2];
-        const cur = blocks[blocks.length - 1];
-        if (prev.top + prev.height + NOTE_GAP * noteScale() <= cur.top) break;
-        const items = [...prev.items, ...cur.items];
-        let offset = 0;
-        let sum = 0;
-        for (const it of items) {
-          sum += it.want - offset;
-          offset += it.h + NOTE_GAP * noteScale();
-        }
-        blocks.splice(-2, 2, { items, top: sum / items.length, height: offset - NOTE_GAP * noteScale() });
-      }
+    const k = noteScale();
+    const gap = NOTE_GAP * k;
+    const inset = 12 * k; // the line stays clear of the card's rounded corners
+    for (const it of column) {
+      it.lo = it.pin.y - it.h + inset;
+      it.hi = it.pin.y - inset;
+      it.top = Math.min(Math.max(it.pin.y - LINE_Y * k, it.lo), it.hi);
     }
-    for (const block of blocks) {
-      let y = block.top;
-      for (const { a, h, at, meta, side, pin } of block.items) {
-        const k = noteScale();
-        const x = side === "left" ? at.x - (GUTTER + NOTE_W) * k : at.x + sizeOf(meta).w + GUTTER * k;
-        pos.set(a.id, { x, y, h, w: NOTE_W * k, side, pin, frameX: side === "left" ? at.x : at.x + sizeOf(meta).w });
-        y += h + NOTE_GAP * k;
-      }
+    // Down the column: never overlap the card above.
+    for (let i = 1; i < column.length; i++) column[i].top = Math.max(column[i].top, column[i - 1].top + column[i - 1].h + gap);
+    // The highest each card can sit with every card above it still in range.
+    for (let i = 0; i < column.length; i++)
+      column[i].floor = Math.max(column[i].lo, i > 0 ? column[i - 1].floor + column[i - 1].h + gap : -Infinity);
+    // Back up: a card pushed past its range moves up (never past that limit) and
+    // nudges the cards above it up too; a final pass down settles any overlap left.
+    for (let i = column.length - 1; i >= 0; i--) {
+      if (column[i].top > column[i].hi) column[i].top = Math.max(column[i].hi, column[i].floor);
+      if (i > 0) column[i - 1].top = Math.min(column[i - 1].top, column[i].top - gap - column[i - 1].h);
+    }
+    for (let i = 1; i < column.length; i++) column[i].top = Math.max(column[i].top, column[i - 1].top + column[i - 1].h + gap);
+
+    for (const { a, h, at, meta, side, pin, top } of column) {
+      const x = side === "left" ? at.x - (GUTTER + NOTE_W) * k : at.x + sizeOf(meta).w + GUTTER * k;
+      pos.set(a.id, { x, y: top, h, w: NOTE_W * k, side, pin, frameX: side === "left" ? at.x : at.x + sizeOf(meta).w });
     }
   }
   return pos;
@@ -587,12 +586,16 @@ function renderInk() {
     // Quiet by design: a 1px dashed grey line and a small dot, the same size on screen
     // at every zoom (dividing by z cancels the camera's scale).
     const lw = 1 / z;
-    // Straight when the card is level with its element; otherwise an elbow whose
-    // vertical run sits in the gap between the card and the snapshot.
+    // The line may meet the card anywhere along its side, so it runs straight across at
+    // the element's height whenever that falls within the card (cards nudge up or down
+    // to make room for each other). Only if a card can't reach that height does the
+    // line bend, in the gap between the card and the snapshot.
+    const inset = 12 * noteScale(); // keep clear of the card's rounded corners
+    const meet = Math.min(Math.max(pin.y, y + inset), y + p.h - inset);
     const mid = p.frameX == null ? null : (edge + p.frameX) / 2;
     shapesEl.append(
       svg("path", {
-        d: connector(edge, y + LINE_Y * noteScale(), mid, pin.x, pin.y, 12 * noteScale()),
+        d: connector(edge, meet, mid, pin.x, pin.y, 12 * noteScale()),
         class: "leader",
         "stroke-width": lw,
         "stroke-dasharray": `${lw * 4} ${lw * 3}`,
