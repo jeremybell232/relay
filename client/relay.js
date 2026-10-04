@@ -278,22 +278,24 @@
     <style>
       :host { --bg: #2c2c2c; --fg: #ffffff; --muted: #ffffff80; --hover: #ffffff14; --blue: #0d99ff; }
       * { box-sizing: border-box; margin: 0; font: 500 12px/1 "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: -0.005em; }
-      .bar { display: flex; align-items: center; gap: 2px; padding: 4px; background: var(--bg); color: var(--fg);
-        border-radius: 12px; box-shadow: 0 0 0 0.5px #ffffff1f inset, 0 2px 6px #0000002e, 0 10px 28px #00000040; }
-      button, a { height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--fg); cursor: pointer;
+      /* Figma UI3's dark tool bar: 40px controls with 8px corners, hairline dividers,
+         recessed fields, Figma blue for the main action. */
+      .bar { display: flex; align-items: center; gap: 4px; padding: 8px; background: var(--bg); color: var(--fg);
+        border-radius: 16px; box-shadow: 0 0 0 0.5px #00000080, inset 0 0 0 0.5px #ffffff14, 0 2px 6px #00000026, 0 10px 28px #00000040; }
+      button, a { height: 40px; border: 0; border-radius: 8px; background: transparent; color: var(--fg); cursor: pointer;
         display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; white-space: nowrap;
         transition: background 140ms; }
       button:hover, a:hover { background: var(--hover); }
-      svg { width: 18px; height: 18px; flex: none; }
-      .grip { width: 20px; height: 32px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted);
+      svg { width: 22px; height: 22px; flex: none; }
+      .grip { width: 24px; height: 40px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted);
         border-radius: 6px; cursor: grab; touch-action: none; transition: color 140ms, background 140ms; }
       .grip:hover { color: var(--fg); background: #ffffff0d; }
-      .grip svg { width: 16px; height: 16px; }
+      .grip svg { width: 18px; height: 18px; }
       :host(.dragging) .grip { cursor: grabbing; }
-      input { height: 32px; width: 168px; padding: 0 10px; margin: 0 2px; border: 0; border-radius: 8px; outline: none;
-        background: transparent; color: var(--fg); transition: background 140ms, box-shadow 140ms; }
-      input:hover { background: #ffffff0d; }
-      input:focus { background: #ffffff0d; box-shadow: inset 0 0 0 1px var(--blue); }
+      input { height: 40px; width: 180px; padding: 0 12px; margin: 0 4px; border: 0; border-radius: 8px; outline: none;
+        background: #383838; color: var(--fg); font-size: 12px; transition: background 140ms, box-shadow 140ms; }
+      input:hover { background: #3e3e3e; }
+      input:focus { background: #383838; box-shadow: inset 0 0 0 1px var(--blue); }
       input::placeholder { color: var(--muted); }
       .snap { background: var(--blue); }
       .snap:hover { background: #0b88e2; }
@@ -304,9 +306,11 @@
       .tip.show { opacity: 1; transform: translate(-50%, 0); }
       .tip kbd { margin-left: 8px; font: inherit; color: #ffffff80; }
       :host([data-corner^="top"]) .tip { bottom: auto; top: calc(100% + 8px); }
-      .icon { width: 32px; }
+      .icon { width: 40px; }
+      .canvas-link { background: #383838; }
+      .canvas-link:hover { background: #444444; }
       button:disabled { opacity: .6; cursor: progress; }
-      .sep { width: 1px; height: 18px; margin: 0 4px; background: #ffffff1f; }
+      .sep { align-self: stretch; width: 1px; margin: -8px 4px; background: #ffffff1f; }
       /* The toast sits on the side of the bar facing the middle of the screen. */
       :host([data-corner^="top"]) .toast { bottom: auto; top: calc(100% + 8px); transform: translateY(-4px); }
       :host([data-corner^="top"]) .toast.show { transform: none; }
