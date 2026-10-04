@@ -58,8 +58,17 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 /* ---- snapshot cards */
 .card {
   position: absolute; background: var(--card); border: 1px solid var(--border); border-radius: 0;
-  box-shadow: 0 1px 2px #0000000d, 0 8px 24px #0000000f; overflow: hidden;
+  box-shadow: 0 1px 2px #0000000d, 0 8px 24px #0000000f;
 }
+/* Size label under a selected frame, Figma-style; same size on screen at any zoom. */
+.card .dims {
+  position: absolute; left: 50%; top: 100%; display: none; padding: 4px 6px; border-radius: 4px; white-space: nowrap;
+  background: var(--select); color: #fff; font: 500 11px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+  transform-origin: 50% 0; transform: translate(-50%, calc(8px / var(--z, 1))) scale(calc(1 / var(--z, 1)));
+  pointer-events: none;
+}
+.card.selected .dims { display: block; }
+.card .dims span { color: #ffffffb3; }
 /* Figma-style frame outline: a stroke hugging the outside edge, no gap. Shown on
    hover (with the Move tool) and when selected; constant width on screen. */
 .card.selected,
@@ -74,11 +83,6 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 .card header .label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .card header .path { color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; flex: 1; font-size: 13px; }
 .card header .time { color: var(--muted-foreground); font-size: 13px; }
-.card header .size {
-  padding: 2px 8px; border-radius: 999px; background: var(--accent); color: var(--muted-foreground);
-  font-size: 12px; font-variant-numeric: tabular-nums;
-}
-.card header .size:empty { display: none; }
 .card header a, .card header button {
   font: 500 13px var(--font-sans); color: var(--muted-foreground); background: none; border: 0; padding: 4px 8px;
   border-radius: 6px; cursor: pointer; text-decoration: none; transition: background var(--dur-fast);
