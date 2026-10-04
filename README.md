@@ -37,7 +37,12 @@ from inside Claude Code:
 /plugin install relay@relay
 ```
 
-You need Node 18 or newer. To update later, use `/plugin`, open **Installed**, then **Update now**.
+You need Node 18 or newer.
+
+**Updates:** every push to this repo is a new version; there's no version number to bump. To get updates
+automatically, open `/plugin`, go to **Marketplaces**, pick **relay** and turn on **Enable auto-update**.
+Claude Code then checks in the background during a session. When it says a plugin was updated, run
+`/reload-plugins`, or start a new session. Without auto-update, use **Installed**, then **Update now**.
 
 - `/relay:on` puts the toolbar on your project's pages, starts relay, and replies in a line.
 - Ask Claude to "snap" a state and it takes the snapshot for you.

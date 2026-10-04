@@ -1,9 +1,16 @@
 {
   "name": "relay",
-  "version": "0.2.0",
   "description": "Snapshot states of the page you're building on localhost onto an infinite canvas, and annotate them like Figma comments pinned to elements.",
-  "author": { "name": "Jeremy Bell" },
+  "author": {
+    "name": "Jeremy Bell"
+  },
   "repository": "https://github.com/jeremybell232/relay",
   "license": "MIT",
-  "keywords": ["snapshot", "canvas", "annotation", "design-review", "localhost"]
+  "keywords": [
+    "snapshot",
+    "canvas",
+    "annotation",
+    "design-review",
+    "localhost"
+  ]
 }
