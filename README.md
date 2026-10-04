@@ -15,7 +15,7 @@ Add this to the page while developing:
 ```
 
 A small toolbar appears in the bottom-right corner. Its screen-size buttons switch between
-**desktop** (the page itself), **tablet** (768 × 1024) and **mobile** (390 × 844); tablet and
+**desktop** (the page itself), **tablet** (768 × 1024) and **mobile** (390 × 664, an iPhone's visible browser area); tablet and
 mobile show the page at that size in a device frame, and snapshots capture it at that size. Type an optional label, click **Snap** (or press
 **⌥⇧S**), then open **Canvas ↗**. If relay isn't running, the script tag fails quietly.
 

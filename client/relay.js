@@ -328,8 +328,9 @@
       .stage { position: fixed; inset: 0; z-index: 1; display: grid; place-content: center; justify-items: center; gap: 14px;
         background: #ececec; overscroll-behavior: contain; }
       .stage[hidden] { display: none; }
-      .device-frame { position: relative; box-sizing: content-box; border: 12px solid #1c1c1c; background: #fff; overflow: hidden;
-        box-shadow: 0 0 0 1px #00000026, 0 24px 60px #00000033; transform-origin: 50% 50%; }
+      /* A quiet frame: hairline edge and a soft shadow rather than a device bezel. */
+      .device-frame { position: relative; box-sizing: content-box; background: #fff; overflow: hidden; transform-origin: 50% 50%;
+        box-shadow: 0 0 0 1px #0000001a, 0 1px 2px #0000000f, 0 12px 32px #0000001a; }
       .device-frame iframe { display: block; border: 0; width: 100%; height: 100%; background: #fff; }
       .device-label { font-size: 12px; font-weight: 500; color: #6b6b6b; font-variant-numeric: tabular-nums; }
       /* Tooltips: shown after a short hover, on the side facing the middle of the screen. */
@@ -388,7 +389,7 @@
             <rect width="16" height="20" x="4" y="2" rx="2" ry="2" /><line x1="12" x2="12.01" y1="18" y2="18" />
           </svg>
         </button>
-        <button class="device" data-device="mobile" aria-label="Mobile" data-tip="Mobile" data-key="390 × 844">
+        <button class="device" data-device="mobile" aria-label="Mobile" data-tip="Mobile" data-key="390 × 664">
           <!-- Lucide: smartphone -->
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" />
@@ -569,8 +570,9 @@
   // Screen sizes. Desktop is the page itself; tablet and mobile show it at that size
   // in a device frame (scaled down if the window is too small) and snaps capture that.
   const DEVICES = {
-    tablet: { w: 768, h: 1024, radius: 28, name: "Tablet" },
-    mobile: { w: 390, h: 844, radius: 46, name: "Mobile" },
+    tablet: { w: 768, h: 1024, radius: 16, name: "Tablet" },
+    // An iPhone's visible browser area (Safari's own bars take the rest of the 844pt screen).
+    mobile: { w: 390, h: 664, radius: 24, name: "Mobile" },
   };
   const stage = $(".stage");
   const frameBox = $(".device-frame");
@@ -588,12 +590,12 @@
   const fitDevice = () => {
     const spec = DEVICES[device];
     if (!spec) return;
-    const scale = Math.min(1, (innerHeight - 110) / (spec.h + 24), (innerWidth - 64) / (spec.w + 24));
+    const scale = Math.min(1, (innerHeight - 110) / spec.h, (innerWidth - 64) / spec.w);
     frameBox.style.width = `${spec.w}px`;
     frameBox.style.height = `${spec.h}px`;
     frameBox.style.borderRadius = `${spec.radius}px`;
     frameBox.style.transform = `scale(${scale})`;
-    frameBox.style.margin = `${(-(1 - scale) * (spec.h + 24)) / 2}px ${(-(1 - scale) * (spec.w + 24)) / 2}px`; // let the grid see the scaled size
+    frameBox.style.margin = `${(-(1 - scale) * spec.h) / 2}px ${(-(1 - scale) * spec.w) / 2}px`; // let the grid see the scaled size
     $(".device-label").textContent = `${spec.name} · ${spec.w} × ${spec.h}${scale < 1 ? ` · ${Math.round(scale * 100)}%` : ""}`;
   };
   const setDevice = (next) => {
