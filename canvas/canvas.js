@@ -170,6 +170,7 @@ function cardFor(meta) {
   el.innerHTML = `
     <header>
       <span class="label"></span><span class="path"></span><span class="size" title="Viewport size when captured"></span><span class="time"></span>
+      <button data-action="toggle-viewport" class="toggle" title="Show or hide what was in the window">Viewport</button>
       <a href="/snaps/${meta.id}.html" target="_blank" title="Open the frozen page in a tab">Open</a>
       <button data-action="delete" title="Delete snapshot">Delete</button>
     </header>
@@ -212,7 +213,11 @@ function cardFor(meta) {
 // if the whole page fit on screen, the card already is the viewport.
 function updateViewportMark(card, meta) {
   const fits = pageHeight(meta) <= (meta.viewport?.h || 0) + 1 && !meta.scroll?.y && !meta.scroll?.x;
-  card.querySelector(".viewport-mark").hidden = fits;
+  const on = !doc.layout[meta.id]?.hideViewport;
+  const toggle = card.querySelector('[data-action="toggle-viewport"]');
+  toggle.hidden = fits; // nothing to toggle when the page fit in the window
+  toggle.setAttribute("aria-pressed", String(on));
+  card.querySelector(".viewport-mark").hidden = fits || !on;
 }
 
 // Same-origin iframes inside a snapshot were frozen too; put them back where they were scrolled.
@@ -862,6 +867,16 @@ viewport.addEventListener("dblclick", (e) => {
 });
 
 viewport.addEventListener("click", async (e) => {
+  const toggle = e.target.closest('[data-action="toggle-viewport"]');
+  if (toggle) {
+    const card = toggle.closest(".card");
+    const at = doc.layout[card.dataset.id];
+    if (at.hideViewport) delete at.hideViewport;
+    else at.hideViewport = true;
+    updateViewportMark(card, snaps.get(card.dataset.id));
+    save();
+    return;
+  }
   const del = e.target.closest('[data-action="delete"]');
   if (!del) return;
   const id = del.closest(".card").dataset.id;

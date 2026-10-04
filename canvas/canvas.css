@@ -75,6 +75,14 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
   border-radius: 6px; cursor: pointer; text-decoration: none; transition: background var(--dur-fast);
 }
 .card header a:hover, .card header button:hover { background: var(--accent); color: var(--foreground); }
+.card header .toggle[hidden] { display: none; }
+.card header .toggle { display: inline-flex; align-items: center; gap: 6px; }
+.card header .toggle::before {
+  content: ""; width: 10px; height: 10px; border-radius: 2px; box-sizing: border-box;
+  border: 1.5px dashed var(--muted-foreground);
+}
+.card header .toggle[aria-pressed="true"] { color: var(--select); }
+.card header .toggle[aria-pressed="true"]::before { border-color: var(--select); }
 .card .frame { position: relative; overflow: hidden; background: #fff; }
 .card iframe { display: block; border: 0; pointer-events: none; }
 .card .shield { position: absolute; inset: 0; }
