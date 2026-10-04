@@ -285,7 +285,7 @@
         transition: background 140ms; }
       button:hover, a:hover { background: var(--hover); }
       svg { width: 18px; height: 18px; flex: none; }
-      .mark { width: 32px; }
+      .mark { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; }
       .mark svg { width: 20px; height: 20px; }
       input { height: 32px; width: 168px; padding: 0 10px; margin: 0 2px; border: 0; border-radius: 8px; outline: none;
         background: transparent; color: var(--fg); transition: background 140ms, box-shadow 140ms; }
@@ -299,6 +299,10 @@
       button:disabled { opacity: .6; cursor: progress; }
       .sep { width: 1px; height: 18px; margin: 0 4px; background: #ffffff1f; }
       .collapsed .hide { display: none; }
+      .toggle .when-collapsed, .collapsed .toggle .when-open { display: none; }
+      .collapsed .toggle .when-collapsed { display: block; }
+      .toggle { color: var(--muted); }
+      .toggle:hover { color: var(--fg); }
       .toast { position: absolute; right: 0; bottom: calc(100% + 8px); padding: 8px 10px; border-radius: 8px;
         background: var(--bg); color: var(--fg); box-shadow: 0 0 0 0.5px #ffffff1f inset, 0 4px 14px #00000040; white-space: nowrap;
         opacity: 0; transform: translateY(4px); transition: opacity 250ms, transform 250ms; pointer-events: none; }
@@ -307,12 +311,12 @@
     </style>
     <div class="toast" part="toast"></div>
     <div class="bar">
-      <button class="mark brand" title="Collapse or expand relay" aria-label="relay">
+      <span class="mark" title="relay" aria-label="relay">
         <svg viewBox="0 0 20 20" aria-hidden="true">
           <rect x="2.75" y="5.75" width="9.5" height="11.5" rx="2.25" fill="none" stroke="currentColor" stroke-width="1.5" />
           <rect x="7.5" y="2.5" width="10" height="12" rx="2.5" fill="#0d99ff" />
         </svg>
-      </button>
+      </span>
       <span class="sep hide"></span>
       <input class="hide" placeholder="Name this state" aria-label="Snapshot name (optional)" />
       <button class="snap hide" title="Snapshot this page state (⌥⇧S)">
@@ -331,6 +335,21 @@
           <path d="M15 3h6v6" />
         </svg>
       </a>
+      <span class="sep hide"></span>
+      <button class="icon toggle" aria-label="Collapse relay" title="Collapse">
+        <!-- Lucide: panel-right-close (shown expanded) -->
+        <svg class="when-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M15 3v18" />
+          <path d="m8 9 3 3-3 3" />
+        </svg>
+        <!-- Lucide: panel-right-open (shown collapsed) -->
+        <svg class="when-collapsed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M15 3v18" />
+          <path d="m10 15-3-3 3-3" />
+        </svg>
+      </button>
     </div>`;
 
   const $ = (s) => root.querySelector(s);
@@ -354,9 +373,17 @@
     },
   };
   bar.classList.toggle("collapsed", store.get("relay:collapsed") === "1");
-  $(".brand").addEventListener("click", () => {
+  const toggle = $(".toggle");
+  const syncToggle = () => {
+    const collapsed = bar.classList.contains("collapsed");
+    toggle.setAttribute("aria-label", collapsed ? "Expand relay" : "Collapse relay");
+    toggle.title = collapsed ? "Expand" : "Collapse";
+  };
+  syncToggle();
+  toggle.addEventListener("click", () => {
     bar.classList.toggle("collapsed");
     store.set("relay:collapsed", bar.classList.contains("collapsed") ? "1" : "0");
+    syncToggle();
   });
 
   let toastTimer;
