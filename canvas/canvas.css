@@ -46,6 +46,7 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 #viewport.panning, #viewport.space { cursor: grab; }
 #viewport.panning { cursor: grabbing; }
 #viewport[data-tool="note"], #viewport[data-tool="arrow"], #viewport[data-tool="box"] { cursor: crosshair; }
+#viewport[data-tool="note"].no-target { cursor: not-allowed; }
 
 #world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 #cards, #notes { position: absolute; left: 0; top: 0; }

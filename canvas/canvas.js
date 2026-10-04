@@ -618,6 +618,7 @@ function render() {
 function setTool(t) {
   tool = t;
   if (t === "select") setHover(null);
+  if (t === "select") viewport.classList.remove("no-target");
   viewport.dataset.tool = t;
   document.querySelectorAll("[data-tool]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tool === t)));
 }
@@ -716,8 +717,10 @@ viewport.addEventListener("pointerdown", (e) => {
   }
 
   if (tool === "note") {
-    pushHistory();
+    // Annotations belong to elements; a click on empty canvas does nothing.
     const at = anchorAt(start);
+    if (!at.snap) return;
+    pushHistory();
     const a = { id: uid(), type: "note", at, text: "" };
     doc.annotations.push(a);
     setTool("select");
@@ -754,6 +757,7 @@ viewport.addEventListener("pointermove", (e) => {
     if (tool !== "select" && !spaceDown) {
       const hit = elementAt(toWorld(e));
       setHover(hit && { snap: hit.snap, path: hit.path, label: describe(hit.el) });
+      viewport.classList.toggle("no-target", !hit); // "not allowed" cursor off the snapshots
     }
   }
   if (!gesture) return;

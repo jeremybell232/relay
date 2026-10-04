@@ -110,7 +110,7 @@ that can't be read cross-origin (these stay linked, which is how Google Fonts ke
 | Scroll / drag empty space / hold space | pan |
 | ⌘-scroll / pinch | zoom |
 | **V** | move snapshots and annotations |
-| **N** | annotate the element you click; Enter saves, Shift+Enter adds a line (double-click to edit) |
+| **N** | annotate the element you click (only elements inside a snapshot); Enter saves, Shift+Enter adds a line (double-click to edit) |
 | double-click a snapshot | scroll inside the frozen page (Esc to leave) |
 | ⌫, or right-click → Delete | delete an annotation; ⌫ on a snapshot asks first and can't be undone |
 | ⌘Z / ⇧⌘Z | undo / redo |
