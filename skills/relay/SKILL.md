@@ -12,43 +12,28 @@ ignores itself, so don't edit the project's `.gitignore`.
 The argument decides the mode: none or `on` → **Add**, `snap [label]` → **Snap**. `off` → do what
 `/relay-off` does (its own skill; prefer pointing the user to `/relay-off`).
 
-**Be fast.** Add should take three tool calls: the script, both servers at once, and one check. Don't
-read project files, explore, or ask questions unless the script's output tells you something is
-missing.
+## Add (default)
 
-## Add
+**One tool call, then a one-line reply.** Don't read files, explore, verify, open tabs or ask
+questions unless the output's `notes` call for it.
 
-1. **Run the script** from the session's folder (add `--dir <project>` if the session isn't opened
-   in the project). It does all the file work in one go:
-   - adds the dev-only toolbar to every page of the project, using the framework's shared layout
-     where there is one (Next.js, Astro, SvelteKit, Remix/React Router) and every real HTML page
-     otherwise. Pages it already has are skipped, so re-running picks up new pages;
-   - merges a `relay` config into this session's `.claude/launch.json`, plus an app dev-server
-     config if there's none.
-   ```bash
-   node ~/.claude/skills/relay/relay.mjs add
-   ```
-   It prints JSON: `framework`, `files`, `inserted`, `relayPort`, `appConfig`, `appPort`, `notes`.
-   Act on `notes` only if they say something needs doing (for example Nuxt needs a manual step).
+```bash
+node ~/.claude/skills/relay/relay.mjs add
+```
+(Add `--dir <project>` if this session isn't opened in the project.) In about a tenth of a second it:
+- adds the dev-only toolbar to every page, through the framework's shared layout where there is one
+  (Next.js, Astro, SvelteKit, Remix/React Router) and every real HTML page otherwise. It skips
+  pages that already have it, so re-running picks up new pages;
+- starts relay in the background (or reuses the one already running) and waits until it answers;
+- writes the `relay` launch config and reports whether the app's dev server is up.
 
-2. **Start both servers in one message**, as two parallel `preview_start` calls:
-   `{name: "relay"}` and `{name: <appConfig>}`. The app tab is the one to check.
+It prints JSON: `files`, `inserted`, `relay`, `canvas`, `appConfig`, `appRunning`, `notes`.
 
-3. **Check once** on the app tab:
-   `javascript_tool: !!document.getElementById("__relay-toolbar")`.
-   - `true`: done.
-   - `false`: reload that tab once and check again. If it's still false, read the console. A
-     `localhost:<relayPort>` connection error means relay isn't running. A CSP error means the
-     app's Content-Security-Policy needs `http://localhost:<relayPort>` in `script-src` and
-     `connect-src` for development.
-   - If the app didn't start (wrong guessed config), fix that entry in `.claude/launch.json` and
-     retry.
-
-4. **Reply in one line**: the toolbar is on the page (**Snap** or **⌥⇧S**), the canvas is in the
-   relay tab at `localhost:<relayPort>` (or open it any time from `<project>.relay/canvas.html`), and you can snap for them.
-
-Never start relay from the home folder, Desktop, Documents or Downloads. It refuses anyway; ask
-which project folder to use instead.
+- If `appRunning` is false and there's an `appConfig`, `preview_start {name: appConfig}`. That's the
+  only other call.
+- Reply in one line, for example: "Relay is on for 3 pages: reload the page to see the toolbar
+  (**Snap** or **⌥⇧S**). Canvas: localhost:4401, or `<project>.relay/canvas.html`."
+- Pass on `notes` only if they ask for something.
 
 ## Snap (Claude takes the snapshot)
 
@@ -61,8 +46,7 @@ If relay isn't on the page, run **Add** first.
 
 ## Remove
 
-Use the `relay-off` skill (`/relay-off`): `node ~/.claude/skills/relay/relay.mjs off`, then
-`preview_stop` the relay server, then reply in one line.
+That's `/relay-off`: `node ~/.claude/skills/relay/relay.mjs off`, then a one-line reply.
 
 ## Notes
 

@@ -240,6 +240,13 @@ async function handle(req, res) {
     return send(res, 200, { ok: true, pages: clients.size });
   }
 
+  // `/relay-off` stops a relay that `/relay` started in the background.
+  if (p === "/api/shutdown" && req.method === "POST") {
+    send(res, 200, { ok: true });
+    setTimeout(() => process.exit(0), 50);
+    return;
+  }
+
   if (p === "/api/snapshots" && req.method === "GET") return send(res, 200, await listSnapshots());
 
   if (p === "/api/snapshots" && req.method === "POST") {

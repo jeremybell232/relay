@@ -18,7 +18,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import net from "node:net";
 import os from "node:os";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 
 const run_ = promisify(execFile);
@@ -213,13 +213,36 @@ async function guessAppConfig() {
     const port = deps.next ? 3000 : deps.vite ? 5173 : deps["react-scripts"] ? 3000 : deps.astro ? 4321 : deps["@sveltejs/kit"] ? 5173 : 3000;
     return { name: "app", runtimeExecutable: "npm", runtimeArgs: ["run", script], port };
   }
-  return { name: "app", runtimeExecutable: "python3", runtimeArgs: ["-m", "http.server", "5180"], port: 5180 };
+  // A plain static site: serve it on the first free port from 5180.
+  let port = 5180;
+  while (port < 5200 && (await listening(port))) port++;
+  return { name: "app", runtimeExecutable: "python3", runtimeArgs: ["-m", "http.server", String(port)], port };
+}
+
+// Relay for this project already answering on `port`?
+const relayAt = (port) =>
+  fetch(`http://localhost:${port}/api/info`, { signal: AbortSignal.timeout(400) }).then((r) => r.json()).catch(() => null);
+
+// Start relay in the background (it outlives this script) and wait until it answers.
+async function startRelay(port) {
+  if ((await relayAt(port))?.root === ROOT) return "already running";
+  const log = await fs.open(path.join(os.tmpdir(), `relay-${port}.log`), "a");
+  spawn(process.execPath, [RELAY_BIN, "--port", String(port), "--dir", ROOT], {
+    cwd: ROOT,
+    detached: true,
+    stdio: ["ignore", log.fd, log.fd],
+  }).unref();
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 50));
+    if ((await relayAt(port))?.root === ROOT) return "started";
+  }
+  return "failed";
 }
 
 // ---------------------------------------------------------------- add
 
 async function add() {
-  const out = { root: ROOT, framework: null, files: [], inserted: 0, relayConfig: "relay", relayPort: 4400, appConfig: null, appPort: null, addedAppConfig: false, notes: [] };
+  const out = { root: ROOT, framework: null, files: [], inserted: 0, relay: null, relayPort: 4400, canvas: null, appConfig: null, appPort: null, appRunning: false, addedAppConfig: false, notes: [] };
   if (NOT_PROJECTS.has(ROOT)) {
     out.notes.push(`${ROOT} isn't a project folder; run with --dir <project>.`);
     return out;
@@ -271,6 +294,12 @@ async function add() {
     out.inserted++;
   }
   if (targets.length && !out.inserted) out.notes.push("Toolbar already on every page; nothing new to add.");
+
+  // 3. relay itself, running in the background, and whether the app is up.
+  out.relay = await startRelay(out.relayPort);
+  if (out.relay === "failed") out.notes.push(`relay didn't start; see ${path.join(os.tmpdir(), `relay-${out.relayPort}.log`)}.`);
+  out.canvas = `http://localhost:${out.relayPort}/`;
+  out.appRunning = out.appPort ? await listening(out.appPort) : false;
   return out;
 }
 
@@ -329,11 +358,12 @@ async function off() {
     out.notes.push(`Several relays are running (${servers.map((s) => `${s.root} on ${s.port}`).join("; ")}) and none belongs to this folder. Run off with --dir <project>.`);
   out.turnedOff = targets.map((s) => ({ port: s.port, root: s.root }));
 
-  // 1. Take toolbars off open pages immediately.
+  // 1. Take toolbars off open pages immediately, then stop that relay.
   for (const s of targets) {
     try {
       const r = await fetch(`http://localhost:${s.port}/api/off`, { method: "POST", signal: AbortSignal.timeout(400) }).then((r) => r.json());
       out.toolbarsHidden += r.pages || 0;
+      await fetch(`http://localhost:${s.port}/api/shutdown`, { method: "POST", signal: AbortSignal.timeout(400) });
     } catch {}
   }
 

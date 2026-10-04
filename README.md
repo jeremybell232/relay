@@ -56,8 +56,9 @@ markers. Running `/relay` again picks up new pages, and `/relay-off` removes eve
 leaving the files exactly as they were. Nuxt has no shared HTML file, so it needs the script added to
 `nuxt.config` by hand.
 
-The skills' file edits are done by `skills/relay/relay.mjs` in a single run, so `/relay` only has to
-start the servers. `off` hides the toolbar on open pages immediately and only touches the
+All of this is done by `skills/relay/relay.mjs` in one run of about 0.25 seconds, including starting
+relay in the background, so `/relay` is a single command and a one-line reply. `/relay-off` stops that
+background relay again. `off` hides the toolbar on open pages immediately and only touches the
 relay that belongs to the current session, so other projects' relays and the demo keep running. You can run it yourself too:
 
 ```
