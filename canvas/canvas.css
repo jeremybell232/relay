@@ -57,11 +57,16 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 
 /* ---- snapshot cards */
 .card {
-  position: absolute; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  position: absolute; background: var(--card); border: 1px solid var(--border); border-radius: 0;
   box-shadow: 0 1px 2px #0000000d, 0 8px 24px #0000000f; overflow: hidden;
 }
-.card.selected { outline: calc(2px / var(--z, 1)) solid var(--select); outline-offset: calc(2px / var(--z, 1)); }
-.card.live { outline: calc(3px / var(--z, 1)) solid #22c55e; }
+/* Figma-style frame outline: a stroke hugging the outside edge, no gap. Shown on
+   hover (with the Move tool) and when selected; constant width on screen. */
+.card.selected,
+#viewport[data-tool="select"]:not(.panning) .card:hover {
+  outline: calc(2px / var(--z, 1)) solid var(--select); outline-offset: 0;
+}
+.card.live { outline: calc(2px / var(--z, 1)) solid #22c55e; outline-offset: 0; }
 .card header {
   height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px;
   border-bottom: 1px solid var(--border); white-space: nowrap; font-size: 15px;
