@@ -29,20 +29,23 @@ there are plenty of states to snapshot. Its snapshots are saved to `example/exam
 
 ## Claude Code
 
-relay comes as a Claude Code plugin with two commands, **`/relay:on`** and **`/relay:off`**. Install it
-from inside Claude Code:
+relay comes as a Claude Code plugin with two commands, **`/relay:on`** and **`/relay:off`**. You need Node
+18 or newer.
 
-```
-/plugin marketplace add jeremybell232/relay
-/plugin install relay@relay
-```
+1. **Add relay's marketplace.** In Claude Code, run `/plugin marketplace add jeremybell232/relay`. In the
+   Claude app, go to **Settings → Plugins** and add `jeremybell232/relay` as a source.
+2. **Install it.** Run `/plugin install relay@relay`, or click **Install** on Relay in the app.
+3. **Turn on automatic updates.** Every push to this repo is a new version, and this step means you
+   get them without doing anything. It's off by default for plugins from outside Anthropic, and only
+   you or your organization admin can turn it on.
+   - **Claude app:** open relay's source settings and turn on **Sync automatically**. For an
+     organization, this is in **Organization settings → Plugins & skills**.
+   - **Claude Code:** `/plugin` → **Marketplaces** → **relay** → **Enable auto-update**. When it says
+     the plugin was updated, run `/reload-plugins` or start a new session.
 
-You need Node 18 or newer.
-
-**Updates:** every push to this repo is a new version; there's no version number to bump. To get updates
-automatically, open `/plugin`, go to **Marketplaces**, pick **relay** and turn on **Enable auto-update**.
-Claude Code then checks in the background during a session. When it says a plugin was updated, run
-`/reload-plugins`, or start a new session. Without auto-update, use **Installed**, then **Update now**.
+If you skip step 3, `/relay:on` tells you when a newer version is out (it checks GitHub at most once a
+day). Update with **Settings → Plugins → Relay → Update**, or `/plugin` → **Installed** → **relay** →
+**Update now**.
 
 - `/relay:on` puts the toolbar on your project's pages, starts relay, and replies in a line.
 - Ask Claude to "snap" a state and it takes the snapshot for you.

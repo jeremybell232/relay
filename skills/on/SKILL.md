@@ -28,13 +28,15 @@ path works however relay is installed: as a plugin or linked into `~/.claude/ski
 - starts relay in the background (or reuses the one already running) and waits until it answers;
 - writes the `relay` launch config and reports whether the app's dev server is up.
 
-It prints JSON: `files`, `inserted`, `relay`, `canvas`, `appConfig`, `appRunning`, `notes`.
+It prints JSON: `files`, `inserted`, `relay`, `canvas`, `appConfig`, `appRunning`, `update`, `notes`.
 
 - If `appRunning` is false and there's an `appConfig`, `preview_start {name: appConfig}`. That's the
   only other call.
 - Reply in one line, for example: "Relay is on for 3 pages: reload the page to see the toolbar
   (**Snap** or **⌥⇧S**). Canvas: localhost:4401, or `<project>.relay/canvas.html`."
 - Pass on `notes` only if they ask for something.
+- If `update.available` is true, add one more line: "A relay update is available:" followed by
+  `update.how`.
 
 ## Snap (Claude takes the snapshot)
 

@@ -239,10 +239,49 @@ async function startRelay(port) {
   return "failed";
 }
 
+// ---------------------------------------------------------------- update check
+//
+// Plugin installs live in Claude's plugin cache, in a folder named after the commit
+// they were installed from. Compare that with the latest commit on GitHub (at most
+// once a day, never slower than ~0.8s) so /relay:on can mention an available update.
+// Linked/git checkouts are skipped; those update with git.
+
+const PLUGIN_ROOT = path.resolve(path.dirname(RELAY_BIN), "..");
+const CHECK_CACHE = path.join(os.tmpdir(), "relay-update-check.json");
+
+async function checkForUpdate() {
+  const installed = path.basename(PLUGIN_ROOT);
+  if (!/^[0-9a-f]{7,40}$/.test(installed)) return null; // not a plugin-cache install
+  const manifest = JSON.parse((await read(path.join(PLUGIN_ROOT, ".claude-plugin", "plugin.json"))) || "{}");
+  const repo = (manifest.repository || "").match(/github\.com\/([^/]+\/[^/.]+)/)?.[1];
+  if (!repo) return null;
+
+  let latest = null;
+  const cached = JSON.parse((await read(CHECK_CACHE)) || "null");
+  if (cached?.repo === repo && Date.now() - cached.at < 24 * 3600 * 1000) latest = cached.latest;
+  else {
+    latest = await fetch(`https://api.github.com/repos/${repo}/commits/HEAD`, {
+      headers: { Accept: "application/vnd.github.sha", "User-Agent": "relay" },
+      signal: AbortSignal.timeout(800),
+    })
+      .then((r) => (r.ok ? r.text() : null))
+      .catch(() => null);
+    if (latest) await fs.writeFile(CHECK_CACHE, JSON.stringify({ repo, latest, at: Date.now() })).catch(() => {});
+  }
+  if (!latest) return null;
+  return {
+    available: !latest.startsWith(installed),
+    installed,
+    latest: latest.slice(0, 12),
+    how: "Claude app: Settings → Plugins → Relay → Update. Claude Code: /plugin → Installed → relay → Update now.",
+  };
+}
+
 // ---------------------------------------------------------------- add
 
 async function add() {
-  const out = { root: ROOT, framework: null, files: [], inserted: 0, relay: null, relayPort: 4400, canvas: null, appConfig: null, appPort: null, appRunning: false, addedAppConfig: false, notes: [] };
+  const updating = checkForUpdate(); // runs alongside everything else
+  const out = { root: ROOT, framework: null, files: [], inserted: 0, relay: null, relayPort: 4400, canvas: null, appConfig: null, appPort: null, appRunning: false, addedAppConfig: false, update: null, notes: [] };
   if (NOT_PROJECTS.has(ROOT)) {
     out.notes.push(`${ROOT} isn't a project folder; run with --dir <project>.`);
     return out;
@@ -300,6 +339,7 @@ async function add() {
   if (out.relay === "failed") out.notes.push(`relay didn't start; see ${path.join(os.tmpdir(), `relay-${out.relayPort}.log`)}.`);
   out.canvas = `http://localhost:${out.relayPort}/`;
   out.appRunning = out.appPort ? await listening(out.appPort) : false;
+  out.update = await updating;
   return out;
 }
 
