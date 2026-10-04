@@ -3,6 +3,21 @@
 // Freezes the current DOM (styles and assets inlined, scripts stripped) and
 // posts it to the relay server, which puts it on the canvas.
 (() => {
+  // Inside relay's own tablet/mobile preview frame: no second toolbar, but let ⌥⇧S
+  // reach the real one in the page around it.
+  if (window.name === "relay-device") {
+    addEventListener(
+      "keydown",
+      (e) => {
+        if (e.altKey && e.shiftKey && e.code === "KeyS") {
+          e.preventDefault();
+          parent.relay?.snap();
+        }
+      },
+      true,
+    );
+    return;
+  }
   if (window.__relay) return;
   window.__relay = true;
 
@@ -58,10 +73,11 @@
   // The canvas shows the whole page at full height, where 100vh would mean "the whole
   // page". Freeze viewport-relative units to the pixel sizes they had when captured.
   const VP_RE = /(?<![\w.-])(-?(?:\d+\.?\d*|\.\d+))([sld]?)(vh|vmin|vmax)\b/gi; // not inside names like .h-100vh
-  const freezeViewportUnits = (css) =>
+  const freezeViewportUnits = (css, win = window) =>
     css.replace(VP_RE, (m, n, _, unit) => {
       const u = unit.toLowerCase();
-      const base = u === "vh" ? innerHeight : u === "vmin" ? Math.min(innerWidth, innerHeight) : Math.max(innerWidth, innerHeight);
+      const { innerWidth: w, innerHeight: h } = win;
+      const base = u === "vh" ? h : u === "vmin" ? Math.min(w, h) : Math.max(w, h);
       return `${+((parseFloat(n) * base) / 100).toFixed(2)}px`;
     });
 
@@ -214,7 +230,7 @@
       if (text == null) {
         if (sheet.href) styleNodes.push({ link: sheet.href, media });
       } else {
-        styleNodes.push({ css: freezeViewportUnits(await inlineCssUrls(text, pageBase)), media });
+        styleNodes.push({ css: freezeViewportUnits(await inlineCssUrls(text, pageBase), d.defaultView || window), media });
       }
     }
     for (const s of styleNodes) {
@@ -246,7 +262,7 @@
 
     for (const n of clone.querySelectorAll("[style]")) {
       const v = n.getAttribute("style");
-      if (/v(h|min|max)\b/i.test(v)) n.setAttribute("style", freezeViewportUnits(v));
+      if (/v(h|min|max)\b/i.test(v)) n.setAttribute("style", freezeViewportUnits(v, d.defaultView || window));
     }
 
     // 5. Anything left relative resolves against the original page.
@@ -299,6 +315,23 @@
       input::placeholder { color: var(--muted); }
       .snap { background: var(--blue); }
       .snap:hover { background: #0b88e2; }
+      /* Screen sizes: a recessed segmented group, like Figma's. */
+      .devices { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; background: #383838; margin: 0 2px; }
+      .device { width: 34px; height: 34px; border-radius: 6px; color: var(--muted); }
+      .device svg { width: 18px; height: 18px; }
+      .device:hover { color: var(--fg); background: #ffffff0f; }
+      .device[aria-pressed="true"] { color: var(--fg); background: #ffffff24; }
+      /* The bar and its popups sit above the device stage. */
+      .bar { position: relative; z-index: 2; }
+      .toast, .tip { z-index: 3; }
+      /* Tablet/mobile: the page shown at that size in a device frame on a plain backdrop. */
+      .stage { position: fixed; inset: 0; z-index: 1; display: grid; place-content: center; justify-items: center; gap: 14px;
+        background: #ececec; overscroll-behavior: contain; }
+      .stage[hidden] { display: none; }
+      .device-frame { position: relative; box-sizing: content-box; border: 12px solid #1c1c1c; background: #fff; overflow: hidden;
+        box-shadow: 0 0 0 1px #00000026, 0 24px 60px #00000033; transform-origin: 50% 50%; }
+      .device-frame iframe { display: block; border: 0; width: 100%; height: 100%; background: #fff; }
+      .device-label { font-size: 12px; font-weight: 500; color: #6b6b6b; font-variant-numeric: tabular-nums; }
       /* Tooltips: shown after a short hover, on the side facing the middle of the screen. */
       .tip { position: absolute; bottom: calc(100% + 13px); left: 0; padding: 6px 9px; border-radius: 6px; white-space: nowrap;
         background: #1e1e1e; color: #ffffffeb; font-size: 11px; font-weight: 400; line-height: 1.2; letter-spacing: 0.01em;
@@ -327,6 +360,10 @@
       .toast.show { opacity: 1; transform: none; }
       .toast.err { color: #ffb4b4; }
     </style>
+    <div class="stage" hidden>
+      <div class="device-frame"><iframe name="relay-device" title="Device preview"></iframe></div>
+      <div class="device-label"></div>
+    </div>
     <div class="toast" part="toast"></div>
     <div class="tip" role="tooltip"></div>
     <div class="bar">
@@ -336,6 +373,27 @@
           <circle cx="9" cy="12" r="1" /><circle cx="9" cy="5" r="1" /><circle cx="9" cy="19" r="1" />
           <circle cx="15" cy="12" r="1" /><circle cx="15" cy="5" r="1" /><circle cx="15" cy="19" r="1" />
         </svg>
+      </span>
+      <span class="sep"></span>
+      <span class="devices" role="group" aria-label="Screen size">
+        <button class="device" data-device="desktop" aria-label="Desktop" data-tip="Desktop">
+          <!-- Lucide: monitor -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect width="20" height="14" x="2" y="3" rx="2" /><line x1="8" x2="16" y1="21" y2="21" /><line x1="12" x2="12" y1="17" y2="21" />
+          </svg>
+        </button>
+        <button class="device" data-device="tablet" aria-label="Tablet" data-tip="Tablet" data-key="768 × 1024">
+          <!-- Lucide: tablet -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect width="16" height="20" x="4" y="2" rx="2" ry="2" /><line x1="12" x2="12.01" y1="18" y2="18" />
+          </svg>
+        </button>
+        <button class="device" data-device="mobile" aria-label="Mobile" data-tip="Mobile" data-key="390 × 844">
+          <!-- Lucide: smartphone -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" />
+          </svg>
+        </button>
       </span>
       <span class="sep"></span>
       <input placeholder="Name this state" aria-label="Snapshot name (optional)" />
@@ -477,14 +535,17 @@
     snapBtn.disabled = true;
     say("Snapping…");
     try {
-      const html = await capture();
+      // In tablet/mobile mode, capture the page inside the device frame at that size.
+      const doc = deviceDoc() || document;
+      const win = doc.defaultView;
+      const html = await capture(doc);
       const meta = {
-        url: location.href,
-        title: document.title,
+        url: win.location.href,
+        title: doc.title,
         label: label.value.trim(),
-        viewport: { w: innerWidth, h: innerHeight },
-        scroll: { x: scrollX, y: scrollY },
-        docHeight: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight || 0),
+        viewport: { w: win.innerWidth, h: win.innerHeight },
+        scroll: { x: win.scrollX, y: win.scrollY },
+        docHeight: Math.max(doc.documentElement.scrollHeight, doc.body?.scrollHeight || 0),
       };
       const res = await fetch(`${SERVER}/api/snapshots`, {
         method: "POST",
@@ -504,6 +565,54 @@
   }
 
   snapBtn.addEventListener("click", snap);
+
+  // Screen sizes. Desktop is the page itself; tablet and mobile show it at that size
+  // in a device frame (scaled down if the window is too small) and snaps capture that.
+  const DEVICES = {
+    tablet: { w: 768, h: 1024, radius: 28, name: "Tablet" },
+    mobile: { w: 390, h: 844, radius: 46, name: "Mobile" },
+  };
+  const stage = $(".stage");
+  const frameBox = $(".device-frame");
+  const frame = frameBox.querySelector("iframe");
+  let device = DEVICES[store.get("relay:device")] ? store.get("relay:device") : "desktop";
+  const deviceDoc = () => {
+    if (device === "desktop") return null;
+    try {
+      const d = frame.contentDocument;
+      return d && d.readyState !== "loading" && d.URL !== "about:blank" ? d : null;
+    } catch {
+      return null;
+    }
+  };
+  const fitDevice = () => {
+    const spec = DEVICES[device];
+    if (!spec) return;
+    const scale = Math.min(1, (innerHeight - 110) / (spec.h + 24), (innerWidth - 64) / (spec.w + 24));
+    frameBox.style.width = `${spec.w}px`;
+    frameBox.style.height = `${spec.h}px`;
+    frameBox.style.borderRadius = `${spec.radius}px`;
+    frameBox.style.transform = `scale(${scale})`;
+    frameBox.style.margin = `${(-(1 - scale) * (spec.h + 24)) / 2}px ${(-(1 - scale) * (spec.w + 24)) / 2}px`; // let the grid see the scaled size
+    $(".device-label").textContent = `${spec.name} · ${spec.w} × ${spec.h}${scale < 1 ? ` · ${Math.round(scale * 100)}%` : ""}`;
+  };
+  const setDevice = (next) => {
+    device = DEVICES[next] ? next : "desktop";
+    store.set("relay:device", device);
+    for (const b of root.querySelectorAll(".device")) b.setAttribute("aria-pressed", String(b.dataset.device === device));
+    if (device === "desktop") {
+      stage.hidden = true;
+      frame.src = "about:blank";
+      return;
+    }
+    stage.hidden = false;
+    if (!frame.src || frame.src === "about:blank") frame.src = location.href;
+    fitDevice();
+  };
+  for (const b of root.querySelectorAll(".device")) b.addEventListener("click", () => setDevice(b.dataset.device));
+  addEventListener("resize", fitDevice);
+  // Scrolling the backdrop shouldn't scroll the real page underneath.
+  stage.addEventListener("wheel", (e) => e.target === stage && e.preventDefault(), { passive: false });
 
   // Delayed tooltips for the icon controls.
   const tip = $(".tip");
@@ -570,6 +679,7 @@
   const mount = () => {
     document.body.appendChild(host);
     place(corner, false);
+    setDevice(device);
   };
   if (document.body) mount();
   else addEventListener("DOMContentLoaded", mount);
