@@ -1083,10 +1083,10 @@ for (const el of document.querySelectorAll(".toolbar [data-tip]")) {
     tip.replaceChildren(el.dataset.tip, ...(el.dataset.key ? [Object.assign(document.createElement("kbd"), { textContent: el.dataset.key })] : []));
     tip.hidden = false;
     const r = el.getBoundingClientRect();
-    tip.style.left = `${Math.max(8, r.left + r.width / 2 - tip.offsetWidth / 2)}px`;
+    tip.style.left = `${Math.round(Math.max(8, r.left + r.width / 2 - tip.offsetWidth / 2))}px`;
     // Measured from the toolbar's edge (not the button's), so the tail clears the bar.
     const bar = el.closest(".toolbar").getBoundingClientRect();
-    tip.style.top = `${bar.top - tip.offsetHeight - 11}px`;
+    tip.style.top = `${Math.round(bar.top - tip.offsetHeight - 11)}px`; // whole pixels keep edges crisp
   });
   el.addEventListener("pointerleave", () => (tip.hidden = true));
 }

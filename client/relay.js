@@ -305,13 +305,13 @@
         box-shadow: 0 4px 12px #00000040;
         opacity: 0; transform: translate(-50%, 2px); transition: opacity 120ms, transform 120ms; pointer-events: none; }
       .tip.show { opacity: 1; transform: translate(-50%, 0); }
-      .tip::after { content: ""; position: absolute; left: 50%; top: 100%; width: 10px; height: 5px; transform: translateX(-50%);
+      .tip::after { content: ""; position: absolute; left: 50%; top: calc(100% - 1px); width: 10px; height: 6px; transform: translateX(-50%);
         background: #1e1e1e; clip-path: polygon(0 0, 100% 0, 50% 100%); }
       .tip kbd { margin-left: 8px; font: inherit; color: #ffffff73; }
       /* Docked in a top corner: tooltip below the bar, tail pointing up. */
       :host([data-corner^="top"]) .tip { bottom: auto; top: calc(100% + 13px); transform: translate(-50%, -2px); }
       :host([data-corner^="top"]) .tip.show { transform: translate(-50%, 0); }
-      :host([data-corner^="top"]) .tip::after { top: auto; bottom: 100%; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+      :host([data-corner^="top"]) .tip::after { top: auto; bottom: calc(100% - 1px); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
       .icon { width: 38px; }
       .canvas-link { background: #383838; }
       .canvas-link:hover { background: #444444; }
@@ -518,7 +518,7 @@
       clearTimeout(tipTimer);
       tipTimer = setTimeout(() => {
         tip.replaceChildren(el.dataset.tip, ...(el.dataset.key ? [Object.assign(document.createElement("kbd"), { textContent: el.dataset.key })] : []));
-        tip.style.left = `${el.offsetLeft + el.offsetWidth / 2}px`;
+        tip.style.left = `${Math.round(el.offsetLeft + el.offsetWidth / 2)}px`;
         tip.classList.add("show");
       }, 400);
     });
