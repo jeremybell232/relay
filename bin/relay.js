@@ -134,6 +134,15 @@ async function handle(req, res) {
     return;
   }
 
+  // Lets `relay.mjs off` find which project this server belongs to.
+  if (p === "/api/info") return send(res, 200, { root: ROOT_DIR, dir: DIR, port: PORT });
+
+  // Tells every open page to take its toolbar down right away.
+  if (p === "/api/off" && req.method === "POST") {
+    broadcast("off", {});
+    return send(res, 200, { ok: true, pages: clients.size });
+  }
+
   if (p === "/api/snapshots" && req.method === "GET") return send(res, 200, await listSnapshots());
 
   if (p === "/api/snapshots" && req.method === "POST") {

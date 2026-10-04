@@ -39,11 +39,13 @@ ln -s "$PWD/skill" ~/.claude/skills/relay
 ```
 
 The skill's file edits are done by `skill/relay.mjs` in a single run (about 60ms), so `/relay` only
-has to start the servers. You can run it yourself too:
+has to start the servers. `off` hides the toolbar on open pages immediately. If the current folder
+isn't the one relay was added to, it asks the running relay server which project it belongs to and
+cleans up there. You can run it yourself too:
 
 ```
 node ~/.claude/skills/relay/relay.mjs add    # insert the dev-only toolbar + launch configs
-node ~/.claude/skills/relay/relay.mjs off    # remove them again
+node ~/.claude/skills/relay/relay.mjs off    # remove them again; works from any folder
 ```
 
 ## What a snapshot is

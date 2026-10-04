@@ -57,8 +57,16 @@ If relay isn't on the page, run **Add** first.
 ```bash
 node ~/.claude/skills/relay/relay.mjs off
 ```
-This removes the snippet and the `relay` launch config. Then `preview_stop` the relay server if it's
-running. The `<project>.relay/` canvas is left in place; mention that it's still there.
+One call does all of it:
+- hides the toolbar on every open page straight away, through the running relay server;
+- removes the snippet and the `relay` launch config, in this project or in whichever project a
+  running relay server says it's serving, so it works from any session;
+- leaves the `<project>.relay/` canvas in place.
+
+Then `preview_stop` the relay server if this session started it. Reply in one line using the
+output:
+- `found: false` means relay wasn't set up here and nothing was running; say that plainly.
+- Pass on any `notes`, such as relay's own demo needing `npm run demo` stopped.
 
 ## Notes
 

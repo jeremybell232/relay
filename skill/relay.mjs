@@ -140,31 +140,80 @@ async function add() {
   return out;
 }
 
-async function off() {
-  const out = { root: ROOT, removedFrom: [], launchUpdated: false, notes: [] };
-  for (const c of CANDIDATES) {
-    const file = path.join(ROOT, c.file);
-    let src = await read(file);
-    if (!src || !src.includes(START)) continue;
-    src = src
-      .replace(/[ \t]*<!-- relay:start -->[\s\S]*?<!-- relay:end -->\n?/g, "")
-      .replace(/[ \t]*\{\/\* relay:start \*\/\}[\s\S]*?\{\/\* relay:end \*\/\}\n?/g, "")
-      .replace(/^import Script from "next\/script"; \/\/ relay\n/m, "");
-    await fs.writeFile(file, src);
-    out.removedFrom.push(c.file);
+// Running relay servers (from launch.json, plus the default ports) and the project each serves.
+async function runningServers() {
+  const ports = new Set([4400, 4401]);
+  const cfg = JSON.parse((await read(LAUNCH)) || "null");
+  for (const c of cfg?.configurations || []) if (c.name === "relay" && c.port) ports.add(c.port);
+  const found = [];
+  for (const port of ports) {
+    try {
+      const info = await fetch(`http://localhost:${port}/api/info`, { signal: AbortSignal.timeout(400) }).then((r) => r.json());
+      if (info?.root) found.push({ ...info, port });
+    } catch {} // nothing on that port
   }
-  const text = await read(LAUNCH);
+  return found;
+}
+
+function stripSnippet(src) {
+  return src
+    .replace(/[ \t]*<!-- relay:start -->[\s\S]*?<!-- relay:end -->\n?/g, "")
+    .replace(/[ \t]*\{\/\* relay:start \*\/\}[\s\S]*?\{\/\* relay:end \*\/\}\n?/g, "")
+    .replace(/^import Script from "next\/script"; \/\/ relay\n/m, "");
+}
+
+async function removeFrom(root) {
+  const removed = [];
+  for (const c of CANDIDATES) {
+    const file = path.join(root, c.file);
+    const src = await read(file);
+    if (!src || !src.includes(START)) continue;
+    await fs.writeFile(file, stripSnippet(src));
+    removed.push(path.join(root, c.file));
+  }
+  const launch = path.join(root, ".claude", "launch.json");
+  const text = await read(launch);
+  let launchUpdated = false;
   if (text) {
     const cfg = JSON.parse(text);
     const before = cfg.configurations.length;
     cfg.configurations = cfg.configurations.filter((c) => c.name !== "relay");
     if (cfg.configurations.length !== before) {
-      out.launchUpdated = true;
-      if (cfg.configurations.length) await writeLaunch(cfg);
-      else await fs.rm(LAUNCH);
+      launchUpdated = true;
+      if (cfg.configurations.length) await fs.writeFile(launch, JSON.stringify(cfg, null, 2) + "\n");
+      else await fs.rm(launch);
     }
   }
-  out.notes.push("The <project>.relay/ canvas folder was left in place.");
+  return { removed, launchUpdated };
+}
+
+async function off() {
+  const out = { root: ROOT, removedFrom: [], launchUpdated: false, toolbarsHidden: 0, servers: [], found: false, notes: [] };
+  const servers = await runningServers();
+  out.servers = servers.map((s) => ({ port: s.port, root: s.root }));
+
+  // 1. Take toolbars off open pages immediately.
+  for (const s of servers) {
+    try {
+      const r = await fetch(`http://localhost:${s.port}/api/off`, { method: "POST", signal: AbortSignal.timeout(400) }).then((r) => r.json());
+      out.toolbarsHidden += r.pages || 0;
+    } catch {}
+  }
+
+  // 2. Remove the snippet + launch config: here, or wherever a running relay says it's serving.
+  const roots = [ROOT];
+  if (dirFlag < 0) for (const s of servers) if (!roots.includes(s.root)) roots.push(s.root);
+  for (const root of roots) {
+    const r = await removeFrom(root);
+    out.removedFrom.push(...r.removed);
+    out.launchUpdated ||= r.launchUpdated;
+  }
+  out.found = out.removedFrom.length > 0 || out.launchUpdated || servers.length > 0;
+
+  const demo = path.resolve(path.dirname(RELAY_BIN), "../example");
+  if (servers.some((s) => s.root === demo)) out.notes.push("relay's own demo adds the toolbar when it serves the page; stop `npm run demo` to turn it off for good.");
+  if (!out.found) out.notes.push(`relay isn't set up in ${ROOT} and no relay server is running, so there was nothing to turn off.`);
+  else out.notes.push("The <project>.relay/ canvas folder was left in place.");
   return out;
 }
 

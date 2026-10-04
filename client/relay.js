@@ -389,6 +389,18 @@
     true,
   );
 
+  // `/relay off` broadcasts "off"; take the toolbar down without waiting for a reload.
+  try {
+    const events = new EventSource(`${SERVER}/api/events`);
+    events.addEventListener("off", () => {
+      host.remove();
+      events.close();
+      window.__relay = false;
+      delete window.relay;
+    });
+    events.onerror = () => events.close(); // relay stopped; don't keep retrying
+  } catch {}
+
   const mount = () => document.body.appendChild(host);
   if (document.body) mount();
   else addEventListener("DOMContentLoaded", mount);
