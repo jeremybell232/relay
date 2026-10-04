@@ -181,6 +181,7 @@ function cardFor(meta) {
       </div>
       <div class="shield"></div>
     </div>`;
+  updateViewportMark(el, meta);
   el.querySelector(".label").textContent = meta.label || meta.title || "Untitled";
   el.querySelector(".path").textContent = pathOf(meta);
   if (meta.viewport) el.querySelector(".size").textContent = `${meta.viewport.w} × ${meta.viewport.h}`;
@@ -198,12 +199,20 @@ function cardFor(meta) {
         pageHeights.set(meta.id, h);
         frame.height = h;
         el.querySelector(".frame").style.height = `${h}px`;
+        updateViewportMark(el, meta);
       }
     } catch {}
     renderInk(); // anchored annotations can now find their elements
   });
   frame.src = `/snaps/${meta.id}.html`;
   return el;
+}
+
+// The viewport box only means something when the page was taller than the window;
+// if the whole page fit on screen, the card already is the viewport.
+function updateViewportMark(card, meta) {
+  const fits = pageHeight(meta) <= (meta.viewport?.h || 0) + 1 && !meta.scroll?.y && !meta.scroll?.x;
+  card.querySelector(".viewport-mark").hidden = fits;
 }
 
 // Same-origin iframes inside a snapshot were frozen too; put them back where they were scrolled.

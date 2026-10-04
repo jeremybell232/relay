@@ -83,6 +83,7 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
   position: absolute; pointer-events: none; box-sizing: border-box;
   border: calc(1.5px / var(--z, 1)) dashed var(--select);
 }
+.viewport-mark[hidden] { display: none; }
 .viewport-mark span {
   position: absolute; left: calc(-1.5px / var(--z, 1)); bottom: 100%;
   padding: calc(2px / var(--z, 1)) calc(6px / var(--z, 1)); border-radius: calc(4px / var(--z, 1)) calc(4px / var(--z, 1)) 0 0;
