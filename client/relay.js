@@ -287,7 +287,7 @@
         transition: background 140ms; }
       button:hover, a:hover { background: var(--hover); }
       svg { width: 20px; height: 20px; flex: none; }
-      .grip { width: 24px; height: 38px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted);
+      .grip { width: 28px; height: 38px; margin-left: 3px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted);
         border-radius: 6px; cursor: grab; touch-action: none; transition: color 140ms, background 140ms; }
       .grip:hover { color: var(--fg); background: #ffffff0d; }
       .grip svg { width: 18px; height: 18px; }
