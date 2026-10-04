@@ -89,11 +89,8 @@ that can't be read cross-origin (these stay linked, which is how Google Fonts ke
 |---|---|
 | Scroll / drag empty space / hold space | pan |
 | ⌘-scroll / pinch | zoom |
-| **V** | select and move snapshots and annotations |
+| **V** | move snapshots and annotations |
 | **N** | annotate the element you click; Enter saves, Shift+Enter adds a line (double-click to edit) |
-| **A** | arrow; each end attaches to the element it starts or ends on |
-| **R** | click to outline an element, or drag to draw a box tied to the element under the drag start |
-| **F** | fit everything, or the selected snapshot |
 | double-click a snapshot | scroll inside the frozen page (Esc to leave) |
 | ⌫, or right-click → Delete | delete an annotation; ⌫ on a snapshot asks first and can't be undone |
 | ⌘Z / ⇧⌘Z | undo / redo |
@@ -110,9 +107,7 @@ hold their size on screen so they never get oversized.
 - Drag the dot onto another element to re-attach it.
 - Right-click an annotation (card, arrow or box) and choose **Delete**, or select it and press ⌫. ⌘Z brings it back.
 
-With the Annotate, Arrow or Box tool, hovering outlines the element and shows its tag
-(`button#clear`, `li.item`). Arrow ends and boxes attach to elements the same way. Anything drawn on
-empty canvas stays free. Deleting a snapshot deletes the annotations attached to it.
+With the Annotate tool, hovering outlines the element and shows its tag (`button#clear`, `li.item`). Deleting a snapshot deletes the annotations attached to it.
 
 The canvas background defaults to `#F5F5F5`. Change it with the swatch in the toolbar, and
 double-click the swatch to reset it. Annotation cards are white on light backgrounds and switch to a

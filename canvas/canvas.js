@@ -1021,7 +1021,7 @@ addEventListener("keydown", (e) => {
     setTool("select");
     return;
   }
-  const tools = { v: "select", n: "note", a: "arrow", r: "box" };
+  const tools = { v: "select", n: "note" };
   if (tools[e.key.toLowerCase()]) return setTool(tools[e.key.toLowerCase()]);
   if (e.key.toLowerCase() === "f") return fit(selectionBox() || bounds());
   if ((e.key === "Backspace" || e.key === "Delete") && selection) {
@@ -1064,7 +1064,27 @@ function selectionBox() {
 }
 
 document.querySelectorAll("[data-tool]").forEach((b) => b.addEventListener("click", () => setTool(b.dataset.tool)));
-$("#fit").addEventListener("click", () => fit());
+// Figma-style tooltips: name plus shortcut, above the hovered control.
+const tip = $("#tip");
+for (const el of document.querySelectorAll(".toolbar [data-tip]")) {
+  el.addEventListener("pointerenter", () => {
+    tip.replaceChildren(el.dataset.tip, Object.assign(document.createElement("kbd"), { textContent: el.dataset.key || "" }));
+    tip.hidden = false;
+    const r = el.getBoundingClientRect();
+    tip.style.left = `${Math.max(8, r.left + r.width / 2 - tip.offsetWidth / 2)}px`;
+    tip.style.top = `${r.top - tip.offsetHeight - 8}px`;
+  });
+  el.addEventListener("pointerleave", () => (tip.hidden = true));
+}
+
+// Project name in the top-left chip (and the tab title).
+(async () => {
+  const root = STATIC ? STATIC.root : (await fetch("/api/info").then((r) => r.json()).catch(() => null))?.root;
+  if (!root) return;
+  const name = root.split(/[\\/]/).filter(Boolean).pop();
+  $("#project-name").textContent = name;
+  document.title = `${name} · relay`;
+})();
 
 // ------------------------------------------------------------------ background
 

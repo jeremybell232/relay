@@ -272,39 +272,62 @@
   host.id = HOST_ID;
   host.style.cssText = "all:initial;position:fixed;right:16px;bottom:16px;z-index:2147483647";
   const root = host.attachShadow({ mode: "open" });
+  // Figma-flavoured: a dark floating pill, the relay mark, a borderless name field,
+  // Figma's blue for the primary action, and an icon button for the canvas.
   root.innerHTML = `
     <style>
-      :host { --bg: #18181b; --fg: #fafafa; --muted: #a1a1aa; --line: #3f3f46; --accent: #fafafa; --accent-fg: #18181b; }
-      * { box-sizing: border-box; margin: 0; font: 500 13px/1 ui-sans-serif, system-ui, -apple-system, "Inter", sans-serif; }
-      .bar { display: flex; align-items: center; gap: 6px; padding: 6px; background: var(--bg); color: var(--fg);
-        border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px #0004; }
-      .brand { display: flex; align-items: center; gap: 6px; padding: 0 6px 0 4px; color: var(--muted); font-size: 12px; cursor: pointer; user-select: none; }
-      .dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 3px #ef444433; }
-      input { height: 32px; width: 160px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line);
-        background: transparent; color: var(--fg); outline: none; }
-      input:focus { border-color: var(--muted); }
+      :host { --bg: #2c2c2c; --fg: #ffffff; --muted: #ffffff80; --hover: #ffffff14; --blue: #0d99ff; }
+      * { box-sizing: border-box; margin: 0; font: 500 12px/1 "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: -0.005em; }
+      .bar { display: flex; align-items: center; gap: 2px; padding: 4px; background: var(--bg); color: var(--fg);
+        border-radius: 12px; box-shadow: 0 0 0 0.5px #ffffff1f inset, 0 2px 6px #0000002e, 0 10px 28px #00000040; }
+      button, a { height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--fg); cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; white-space: nowrap;
+        transition: background 140ms; }
+      button:hover, a:hover { background: var(--hover); }
+      svg { width: 18px; height: 18px; flex: none; }
+      .mark { width: 32px; }
+      .mark svg { width: 20px; height: 20px; }
+      input { height: 32px; width: 168px; padding: 0 10px; margin: 0 2px; border: 0; border-radius: 8px; outline: none;
+        background: transparent; color: var(--fg); transition: background 140ms, box-shadow 140ms; }
+      input:hover { background: #ffffff0d; }
+      input:focus { background: #ffffff0d; box-shadow: inset 0 0 0 1px var(--blue); }
       input::placeholder { color: var(--muted); }
-      button, a { height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--line); background: transparent;
-        color: var(--fg); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
-        transition: background 140ms; white-space: nowrap; }
-      button:hover, a:hover { background: #27272a; }
-      button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-      button.primary:hover { background: #e4e4e7; }
+      .snap { padding: 0 10px 0 8px; background: var(--blue); }
+      .snap:hover { background: #0b88e2; }
+      .snap kbd { margin-left: 2px; font-size: 11px; color: #ffffffb3; }
+      .icon { width: 32px; }
       button:disabled { opacity: .6; cursor: progress; }
-      kbd { font-size: 11px; opacity: .55; }
+      .sep { width: 1px; height: 18px; margin: 0 4px; background: #ffffff1f; }
       .collapsed .hide { display: none; }
-      .toast { position: absolute; right: 0; bottom: calc(100% + 8px); padding: 8px 12px; border-radius: 8px;
-        background: var(--bg); color: var(--fg); border: 1px solid var(--line); white-space: nowrap;
+      .toast { position: absolute; right: 0; bottom: calc(100% + 8px); padding: 8px 10px; border-radius: 8px;
+        background: var(--bg); color: var(--fg); box-shadow: 0 0 0 0.5px #ffffff1f inset, 0 4px 14px #00000040; white-space: nowrap;
         opacity: 0; transform: translateY(4px); transition: opacity 250ms, transform 250ms; pointer-events: none; }
       .toast.show { opacity: 1; transform: none; }
-      .toast.err { color: #fca5a5; }
+      .toast.err { color: #ffb4b4; }
     </style>
     <div class="toast" part="toast"></div>
     <div class="bar">
-      <span class="brand" title="Collapse / expand relay"><span class="dot"></span><span class="hide">relay</span></span>
-      <input class="hide" placeholder="Label (optional)" />
-      <button class="primary hide snap" title="Snapshot this page state (⌥⇧S)">Snap <kbd>⌥⇧S</kbd></button>
-      <a class="hide canvas-link" href="${SERVER}/" target="${CANVAS_TAB}" title="Open the canvas">Canvas ↗</a>
+      <button class="mark brand" title="Collapse or expand relay" aria-label="relay">
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <rect x="2.75" y="5.75" width="9.5" height="11.5" rx="2.25" fill="none" stroke="currentColor" stroke-width="1.5" />
+          <rect x="7.5" y="2.5" width="10" height="12" rx="2.5" fill="#0d99ff" />
+        </svg>
+      </button>
+      <span class="sep hide"></span>
+      <input class="hide" placeholder="Name this state" aria-label="Snapshot name (optional)" />
+      <button class="snap hide" title="Snapshot this page state (⌥⇧S)">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M8.5 6.5 9.6 4.8A1.5 1.5 0 0 1 10.85 4.1h2.3a1.5 1.5 0 0 1 1.25.7l1.1 1.7h2.75A2.25 2.25 0 0 1 20.5 8.75v8.5a2.25 2.25 0 0 1-2.25 2.25H5.75A2.25 2.25 0 0 1 3.5 17.25v-8.5A2.25 2.25 0 0 1 5.75 6.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+          <circle cx="12" cy="12.75" r="3.25" fill="none" stroke="currentColor" stroke-width="1.5" />
+        </svg>
+        Snap <kbd>⌥⇧S</kbd>
+      </button>
+      <a class="icon hide canvas-link" href="${SERVER}/" target="${CANVAS_TAB}" title="Open the canvas" aria-label="Open the canvas">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3.75" y="3.75" width="16.5" height="16.5" rx="3.25" fill="none" stroke="currentColor" stroke-width="1.5" />
+          <path d="M10 14l5.25-5.25M10.5 8.75h4.75v4.75" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </a>
     </div>`;
 
   const $ = (s) => root.querySelector(s);
