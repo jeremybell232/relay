@@ -1,8 +1,8 @@
 ---
-description: "Turn the relay snapshot toolbar off for this project: hide it on open pages, remove its code and launch config, and stop the relay server. Use when the user types /relay:off (or /relay-off) or asks to turn off, remove or disable relay or its toolbar."
+description: "Turn the relay snapshot toolbar off for this project: hide it on open pages, remove its code and launch config, and stop the relay server. Use when the user types /relay:relay-off (or /relay-off) or asks to turn off, remove or disable relay or its toolbar."
 ---
 
-# relay: off
+# relay-off
 
 Be fast: one script call and a one-line reply. Don't read files or explain the mechanics.
 

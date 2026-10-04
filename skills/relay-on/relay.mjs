@@ -243,7 +243,7 @@ async function startRelay(port) {
 //
 // Plugin installs live in Claude's plugin cache, in a folder named after the commit
 // they were installed from. Compare that with the latest commit on GitHub (at most
-// once a day, never slower than ~0.8s) so /relay:on can mention an available update.
+// once a day, never slower than ~0.8s) so /relay:relay-on can mention an available update.
 // Linked/git checkouts are skipped; those update with git.
 
 const PLUGIN_ROOT = path.resolve(path.dirname(RELAY_BIN), "..");

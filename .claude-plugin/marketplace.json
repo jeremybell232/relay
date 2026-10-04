@@ -8,7 +8,7 @@
     {
       "name": "relay",
       "source": "./",
-      "description": "Snapshot localhost page states onto an annotatable infinite canvas. /relay:on turns it on, /relay:off turns it off."
+      "description": "Snapshot localhost page states onto an annotatable infinite canvas. /relay:relay-on turns it on, /relay:relay-off turns it off."
     }
   ]
 }

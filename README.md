@@ -29,7 +29,7 @@ there are plenty of states to snapshot. Its snapshots are saved to `example/exam
 
 ## Claude Code
 
-relay comes as a Claude Code plugin with two commands, **`/relay:on`** and **`/relay:off`**. You need Node
+relay comes as a Claude Code plugin with two commands, **`/relay:relay-on`** and **`/relay:relay-off`**. You need Node
 18 or newer.
 
 1. **Add relay's marketplace.** In Claude Code, run `/plugin marketplace add jeremybell232/relay`. In the
@@ -43,23 +43,23 @@ relay comes as a Claude Code plugin with two commands, **`/relay:on`** and **`/r
    - **Claude Code:** `/plugin` → **Marketplaces** → **relay** → **Enable auto-update**. When it says
      the plugin was updated, run `/reload-plugins` or start a new session.
 
-If you skip step 3, `/relay:on` tells you when a newer version is out (it checks GitHub at most once a
+If you skip step 3, `/relay:relay-on` tells you when a newer version is out (it checks GitHub at most once a
 day). Update with **Settings → Plugins → Relay → Update**, or `/plugin` → **Installed** → **relay** →
 **Update now**.
 
-- `/relay:on` puts the toolbar on your project's pages, starts relay, and replies in a line.
+- `/relay:relay-on` puts the toolbar on your project's pages, starts relay, and replies in a line.
 - Ask Claude to "snap" a state and it takes the snapshot for you.
-- `/relay:off` removes everything again.
+- `/relay:relay-off` removes everything again.
 
 **Working on relay itself?** Link the skills instead, so edits apply straight away. You also get the
 shorter `/relay` and `/relay-off`:
 
 ```
-ln -s "$PWD/skills/on" ~/.claude/skills/relay
-ln -s "$PWD/skills/off" ~/.claude/skills/relay-off
+ln -s "$PWD/skills/relay-on" ~/.claude/skills/relay
+ln -s "$PWD/skills/relay-off" ~/.claude/skills/relay-off
 ```
 
-`/relay:on` puts the toolbar on every page of the project with as few edits as possible:
+`/relay:relay-on` puts the toolbar on every page of the project with as few edits as possible:
 
 | Project | Where the toolbar goes |
 |---|---|
@@ -72,18 +72,18 @@ ln -s "$PWD/skills/off" ~/.claude/skills/relay-off
 
 Pages are found with git's file list, so ignored folders are skipped, as are `node_modules`,
 build output and HTML fragments. Every insertion is dev-only and wrapped in `relay:start`/`relay:end`
-markers. Running `/relay:on` again picks up new pages, and `/relay:off` removes every insertion,
+markers. Running `/relay:relay-on` again picks up new pages, and `/relay:relay-off` removes every insertion,
 leaving the files exactly as they were. Nuxt has no shared HTML file, so it needs the script added to
 `nuxt.config` by hand.
 
-All of this is done by `skills/on/relay.mjs` in one run of about 0.25 seconds, including starting
-relay in the background, so `/relay:on` is a single command and a one-line reply. `/relay:off` stops
+All of this is done by `skills/relay-on/relay.mjs` in one run of about 0.25 seconds, including starting
+relay in the background, so `/relay:relay-on` is a single command and a one-line reply. `/relay:relay-off` stops
 that background relay again. `off` hides the toolbar on open pages immediately and only touches the
 relay that belongs to the current session, so other projects' relays and the demo keep running. You can run it yourself too:
 
 ```
-node skills/on/relay.mjs add    # insert the dev-only toolbar, start relay
-node skills/on/relay.mjs off    # remove it again (just this session's relay)
+node skills/relay-on/relay.mjs add    # insert the dev-only toolbar, start relay
+node skills/relay-on/relay.mjs off    # remove it again (just this session's relay)
 ```
 
 ## What a snapshot is
@@ -154,7 +154,7 @@ over automatically.
 - **Not outside a project:** relay won't run from your home folder, Desktop, Documents or Downloads,
   so it never leaves a canvas folder there.
 - **Port:** each project keeps its own. `relay` uses the port in the project's toolbar snippet, and
-  `/relay:on` picks the first free one.
+  `/relay:relay-on` picks the first free one.
 
 ```
 <project>.relay/canvas.html       open this: live canvas if relay is running, otherwise view only

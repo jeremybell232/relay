@@ -1,15 +1,15 @@
 ---
-description: "Add the relay snapshot toolbar to the current project's local page and open the relay canvas in the browser pane. Use when the user types /relay:on (or /relay), or asks to add relay, snapshot or 'snap' the current page state, or open the relay canvas. To turn relay off, use the off skill (/relay:off or /relay-off)."
+description: "Add the relay snapshot toolbar to the current project's local page and open the relay canvas in the browser pane. Use when the user types /relay:relay-on (or /relay), or asks to add relay, snapshot or 'snap' the current page state, or open the relay canvas. To turn relay off, use the relay-off skill (/relay:relay-off or /relay-off)."
 ---
 
-# relay: on
+# relay-on
 
 Relay is a zero-dependency local server. Its toolbar freezes the page's HTML into
 `<project>.relay/snaps/`, and it hosts an annotatable canvas at `http://localhost:4400`. The folder
 ignores itself, so don't edit the project's `.gitignore`.
 
 The argument decides the mode: none or `on` → **Add**, `snap [label]` → **Snap**. `off` → do what
-the off skill does.
+the relay-off skill does.
 
 ## Add (default)
 
@@ -49,7 +49,7 @@ If relay isn't on the page, run **Add** first.
 
 ## Remove
 
-That's the off skill (`/relay:off`, or `/relay-off`): `node "<base directory>/relay.mjs" off`, then a one-line reply.
+That's the relay-off skill (`/relay:relay-off`, or `/relay-off`): `node "<base directory>/relay.mjs" off`, then a one-line reply.
 
 ## Notes
 
