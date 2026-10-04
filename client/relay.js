@@ -270,7 +270,7 @@
 
   const host = document.createElement("div");
   host.id = HOST_ID;
-  host.style.cssText = "all:initial;position:fixed;right:16px;bottom:16px;z-index:2147483647";
+  host.style.cssText = "all:initial;position:fixed;left:0;top:0;z-index:2147483647";
   const root = host.attachShadow({ mode: "open" });
   // Figma-flavoured: a dark floating pill, the relay mark, a borderless name field,
   // Figma's blue for the primary action, and an icon button for the canvas.
@@ -285,8 +285,11 @@
         transition: background 140ms; }
       button:hover, a:hover { background: var(--hover); }
       svg { width: 18px; height: 18px; flex: none; }
-      .mark { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; }
-      .mark svg { width: 20px; height: 20px; }
+      .grip { width: 20px; height: 32px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted);
+        border-radius: 6px; cursor: grab; touch-action: none; transition: color 140ms, background 140ms; }
+      .grip:hover { color: var(--fg); background: #ffffff0d; }
+      .grip svg { width: 16px; height: 16px; }
+      :host(.dragging) .grip { cursor: grabbing; }
       input { height: 32px; width: 168px; padding: 0 10px; margin: 0 2px; border: 0; border-radius: 8px; outline: none;
         background: transparent; color: var(--fg); transition: background 140ms, box-shadow 140ms; }
       input:hover { background: #ffffff0d; }
@@ -298,11 +301,10 @@
       .icon { width: 32px; }
       button:disabled { opacity: .6; cursor: progress; }
       .sep { width: 1px; height: 18px; margin: 0 4px; background: #ffffff1f; }
-      .collapsed .hide { display: none; }
-      .toggle .when-collapsed, .collapsed .toggle .when-open { display: none; }
-      .collapsed .toggle .when-collapsed { display: block; }
-      .toggle { color: var(--muted); }
-      .toggle:hover { color: var(--fg); }
+      /* The toast sits on the side of the bar facing the middle of the screen. */
+      :host([data-corner^="top"]) .toast { bottom: auto; top: calc(100% + 8px); transform: translateY(-4px); }
+      :host([data-corner^="top"]) .toast.show { transform: none; }
+      :host([data-corner$="left"]) .toast { right: auto; left: 0; }
       .toast { position: absolute; right: 0; bottom: calc(100% + 8px); padding: 8px 10px; border-radius: 8px;
         background: var(--bg); color: var(--fg); box-shadow: 0 0 0 0.5px #ffffff1f inset, 0 4px 14px #00000040; white-space: nowrap;
         opacity: 0; transform: translateY(4px); transition: opacity 250ms, transform 250ms; pointer-events: none; }
@@ -311,15 +313,16 @@
     </style>
     <div class="toast" part="toast"></div>
     <div class="bar">
-      <span class="mark" title="relay" aria-label="relay">
-        <svg viewBox="0 0 20 20" aria-hidden="true">
-          <rect x="2.75" y="5.75" width="9.5" height="11.5" rx="2.25" fill="none" stroke="currentColor" stroke-width="1.5" />
-          <rect x="7.5" y="2.5" width="10" height="12" rx="2.5" fill="#0d99ff" />
+      <span class="grip" title="Drag to move" aria-label="Move the toolbar" role="button" tabindex="-1">
+        <!-- Lucide: grip-vertical -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="9" cy="12" r="1" /><circle cx="9" cy="5" r="1" /><circle cx="9" cy="19" r="1" />
+          <circle cx="15" cy="12" r="1" /><circle cx="15" cy="5" r="1" /><circle cx="15" cy="19" r="1" />
         </svg>
       </span>
-      <span class="sep hide"></span>
-      <input class="hide" placeholder="Name this state" aria-label="Snapshot name (optional)" />
-      <button class="snap hide" title="Snapshot this page state (⌥⇧S)">
+      <span class="sep"></span>
+      <input placeholder="Name this state" aria-label="Snapshot name (optional)" />
+      <button class="snap" title="Snapshot this page state (⌥⇧S)">
         <!-- Lucide: camera -->
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" />
@@ -327,7 +330,7 @@
         </svg>
         Snap <kbd>⌥⇧S</kbd>
       </button>
-      <a class="icon hide canvas-link" href="${SERVER}/" target="${CANVAS_TAB}" title="Open the canvas" aria-label="Open the canvas">
+      <a class="icon canvas-link" href="${SERVER}/" target="${CANVAS_TAB}" title="Open the canvas" aria-label="Open the canvas">
         <!-- Lucide: square-arrow-out-up-right -->
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6" />
@@ -335,21 +338,6 @@
           <path d="M15 3h6v6" />
         </svg>
       </a>
-      <span class="sep hide"></span>
-      <button class="icon toggle" aria-label="Collapse relay" title="Collapse">
-        <!-- Lucide: panel-right-close (shown expanded) -->
-        <svg class="when-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect width="18" height="18" x="3" y="3" rx="2" />
-          <path d="M15 3v18" />
-          <path d="m8 9 3 3-3 3" />
-        </svg>
-        <!-- Lucide: panel-right-open (shown collapsed) -->
-        <svg class="when-collapsed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect width="18" height="18" x="3" y="3" rx="2" />
-          <path d="M15 3v18" />
-          <path d="m10 15-3-3 3-3" />
-        </svg>
-      </button>
     </div>`;
 
   const $ = (s) => root.querySelector(s);
@@ -372,18 +360,48 @@
       } catch {}
     },
   };
-  bar.classList.toggle("collapsed", store.get("relay:collapsed") === "1");
-  const toggle = $(".toggle");
-  const syncToggle = () => {
-    const collapsed = bar.classList.contains("collapsed");
-    toggle.setAttribute("aria-label", collapsed ? "Expand relay" : "Collapse relay");
-    toggle.title = collapsed ? "Expand" : "Collapse";
+  // Drag the grip anywhere; on release the toolbar snaps to the nearest corner,
+  // which is remembered for this site.
+  const MARGIN = 16;
+  const CORNERS = ["top-left", "top-right", "bottom-left", "bottom-right"];
+  const place = (corner, animate) => {
+    const { width, height } = host.getBoundingClientRect();
+    const left = corner.endsWith("left") ? MARGIN : innerWidth - width - MARGIN;
+    const top = corner.startsWith("top") ? MARGIN : innerHeight - height - MARGIN;
+    host.style.transition = animate ? "left 220ms cubic-bezier(.2,.8,.2,1), top 220ms cubic-bezier(.2,.8,.2,1)" : "none";
+    host.style.left = `${left}px`;
+    host.style.top = `${top}px`;
+    host.dataset.corner = corner;
   };
-  syncToggle();
-  toggle.addEventListener("click", () => {
-    bar.classList.toggle("collapsed");
-    store.set("relay:collapsed", bar.classList.contains("collapsed") ? "1" : "0");
-    syncToggle();
+  let corner = CORNERS.includes(store.get("relay:corner")) ? store.get("relay:corner") : "bottom-right";
+  addEventListener("resize", () => place(corner, false));
+
+  const grip = $(".grip");
+  grip.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    grip.setPointerCapture(e.pointerId);
+    const start = host.getBoundingClientRect();
+    const dx = e.clientX - start.left;
+    const dy = e.clientY - start.top;
+    host.classList.add("dragging");
+    host.style.transition = "none";
+    const move = (ev) => {
+      host.style.left = `${ev.clientX - dx}px`;
+      host.style.top = `${ev.clientY - dy}px`;
+    };
+    const up = (ev) => {
+      grip.removeEventListener("pointermove", move);
+      grip.removeEventListener("pointerup", up);
+      grip.removeEventListener("pointercancel", up);
+      host.classList.remove("dragging");
+      // The corner nearest to where you let go of the grip.
+      corner = `${ev.clientY < innerHeight / 2 ? "top" : "bottom"}-${ev.clientX < innerWidth / 2 ? "left" : "right"}`;
+      store.set("relay:corner", corner);
+      place(corner, true);
+    };
+    grip.addEventListener("pointermove", move);
+    grip.addEventListener("pointerup", up);
+    grip.addEventListener("pointercancel", up);
   });
 
   let toastTimer;
@@ -471,7 +489,10 @@
     events.onerror = () => events.close(); // relay stopped; don't keep retrying
   } catch {}
 
-  const mount = () => document.body.appendChild(host);
+  const mount = () => {
+    document.body.appendChild(host);
+    place(corner, false);
+  };
   if (document.body) mount();
   else addEventListener("DOMContentLoaded", mount);
 
