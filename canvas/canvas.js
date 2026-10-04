@@ -1081,7 +1081,7 @@ document.querySelectorAll("[data-tool]").forEach((b) => b.addEventListener("clic
 const tip = $("#tip");
 for (const el of document.querySelectorAll(".toolbar [data-tip]")) {
   el.addEventListener("pointerenter", () => {
-    tip.replaceChildren(el.dataset.tip, Object.assign(document.createElement("kbd"), { textContent: el.dataset.key || "" }));
+    tip.replaceChildren(el.dataset.tip, ...(el.dataset.key ? [Object.assign(document.createElement("kbd"), { textContent: el.dataset.key })] : []));
     tip.hidden = false;
     const r = el.getBoundingClientRect();
     tip.style.left = `${Math.max(8, r.left + r.width / 2 - tip.offsetWidth / 2)}px`;
@@ -1101,34 +1101,32 @@ for (const el of document.querySelectorAll(".toolbar [data-tip]")) {
 
 // ------------------------------------------------------------------ background
 
-const DEFAULT_BG = "#f5f5f5";
-const bgInput = $("#bg");
+// Light or dark, saved with the canvas. Until one is picked, follow the system.
+const themeButton = $(".toolbar .theme");
+const systemDark = matchMedia("(prefers-color-scheme: dark)");
 
-// Relative luminance decides whether annotations render in their light or dark version.
-function toneOf(hex) {
+// Canvases from before the toggle saved a custom background colour; use its tone.
+function themeFromColour(hex) {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
   const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
   return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) < 0.4 ? "dark" : "light";
 }
 
-function applyBackground() {
-  const bg = /^#[0-9a-f]{6}$/i.test(doc.background || "") ? doc.background : DEFAULT_BG;
-  document.documentElement.style.setProperty("--canvas-bg", bg);
-  viewport.dataset.tone = toneOf(bg);
-  bgInput.value = bg;
+function applyTheme() {
+  const theme = doc.theme === "dark" || doc.theme === "light" ? doc.theme : systemDark.matches ? "dark" : "light";
+  document.documentElement.dataset.theme = theme;
+  viewport.dataset.tone = theme; // annotation cards and connectors follow
+  const next = theme === "dark" ? "light" : "dark";
+  themeButton.setAttribute("aria-label", `Switch to ${next} mode`);
+  themeButton.dataset.tip = next === "dark" ? "Dark mode" : "Light mode";
 }
 
-bgInput.addEventListener("input", () => {
-  doc.background = bgInput.value;
-  applyBackground();
+themeButton.addEventListener("click", () => {
+  doc.theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  applyTheme();
   save();
 });
-bgInput.closest("label").addEventListener("dblclick", (e) => {
-  e.preventDefault();
-  delete doc.background;
-  applyBackground();
-  save();
-});
+systemDark.addEventListener("change", applyTheme);
 
 // ------------------------------------------------------------------ snapshots in and out
 
@@ -1163,6 +1161,8 @@ function normalise(saved) {
     .map(({ side, ...a }) => a) // card sides are always chosen by the layout now
     .filter((a) => a.type !== "note" || a.text.trim()); // an empty note is an abandoned edit
   for (const at of Object.values(d.layout)) delete at.hideViewport; // retired setting
+  if (!d.theme && /^#[0-9a-f]{6}$/i.test(d.background || "")) d.theme = themeFromColour(d.background);
+  delete d.background; // replaced by the light/dark theme
   return d;
 }
 
@@ -1174,10 +1174,10 @@ async function syncFromServer() {
   if (dirty || gesture || editingNote) return;
   doc.layout = next.layout;
   doc.annotations = next.annotations;
-  doc.background = next.background;
+  doc.theme = next.theme;
   if (selection?.kind === "ann" && !ann(selection.id)) selection = null;
   for (const meta of snaps.values()) place(meta);
-  applyBackground();
+  applyTheme();
   render();
 }
 
@@ -1191,7 +1191,7 @@ async function load() {
     snaps.set(meta.id, meta);
     place(meta);
   }
-  applyBackground();
+  applyTheme();
   if (doc.camera) {
     camera = doc.camera;
     applyCamera();
@@ -1208,7 +1208,7 @@ if (VIEW_ONLY) {
   bar.querySelector("code").textContent = STATIC.command || `cd "${STATIC.root}" && relay`;
 }
 setTool("select");
-applyBackground();
+applyTheme();
 applyCamera();
 load().catch((err) => console.error("[relay] failed to load canvas", err));
 

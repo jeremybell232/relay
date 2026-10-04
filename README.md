@@ -129,9 +129,9 @@ hold their size on screen so they never get oversized.
 
 With the Annotate tool, hovering outlines the element and shows its tag (`button#clear`, `li.item`). Deleting a snapshot deletes the annotations attached to it.
 
-The canvas background defaults to `#F5F5F5`. Change it with the swatch in the toolbar, and
-double-click the swatch to reset it. Annotation cards are white on light backgrounds and switch to a
-dark version on dark ones.
+The canvas has a light mode (`#F5F5F5`) and a dark mode (`#313131`). Switch with the sun/moon button
+in the toolbar. The choice is saved with the canvas, and until you pick one it follows your system
+setting. Annotation cards and the canvas controls switch with it.
 
 Each card shows the whole page at full height, including everything you'd have to scroll to.
 Scroll boxes inside the page, such as a long list, keep the scroll position they had. Double-click a
@@ -159,7 +159,7 @@ over automatically.
 ```
 <project>.relay/canvas.html       open this: live canvas if relay is running, otherwise view only
 <project>.relay/.gitignore        "*": the folder ignores itself, and no tracked file is touched
-<project>.relay/canvas.json       background, camera, card positions, annotations (with their element anchors)
+<project>.relay/canvas.json       theme, camera, card positions, annotations (with their element anchors)
 <project>.relay/snaps/<id>.html   frozen page
 <project>.relay/snaps/<id>.json   url, title, label, viewport, scroll position, time
 ```
