@@ -9,6 +9,8 @@
   const SERVER = document.currentScript ? new URL(document.currentScript.src).origin : "http://localhost:4400";
   const MAX_ASSET = 2 * 1024 * 1024;
   const HOST_ID = "__relay-toolbar";
+  // The canvas tab's name; the canvas page names itself the same way.
+  const CANVAS_TAB = `relay-canvas-${new URL(SERVER).port || "80"}`;
 
   // ---------------------------------------------------------------- capture
 
@@ -302,7 +304,7 @@
       <span class="brand" title="Collapse / expand relay"><span class="dot"></span><span class="hide">relay</span></span>
       <input class="hide" placeholder="Label (optional)" />
       <button class="primary hide snap" title="Snapshot this page state (⌥⇧S)">Snap <kbd>⌥⇧S</kbd></button>
-      <a class="hide" href="${SERVER}/" target="relay-canvas" title="Open the canvas">Canvas ↗</a>
+      <a class="hide canvas-link" href="${SERVER}/" target="${CANVAS_TAB}" title="Open the canvas">Canvas ↗</a>
     </div>`;
 
   const $ = (s) => root.querySelector(s);
@@ -374,6 +376,21 @@
   }
 
   snapBtn.addEventListener("click", snap);
+
+  // Switch to the canvas tab if it's already open instead of opening another one.
+  $(".canvas-link").addEventListener("click", (e) => {
+    e.preventDefault();
+    const tab = window.open("", CANVAS_TAB); // finds the open canvas tab, or opens a blank one
+    if (!tab) return void window.open(`${SERVER}/`, "_blank"); // popup blocked: plain new tab
+    let blank = true;
+    try {
+      blank = tab.location.href === "about:blank";
+    } catch {
+      blank = false; // cross-origin, so it's the canvas that's already open
+    }
+    if (blank) tab.location.replace(`${SERVER}/`);
+    tab.focus();
+  });
   label.addEventListener("keydown", (e) => {
     e.stopPropagation();
     if (e.key === "Enter") snap();

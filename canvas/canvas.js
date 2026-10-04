@@ -6,6 +6,9 @@ import { screenToWorld, panBy, zoomAt, worldTransform, zoomToBox, normalizeWheel
 const STATIC = window.RELAY_STATIC || null;
 const VIEW_ONLY = !!STATIC;
 
+// Name this tab so the toolbar's Canvas button switches to it instead of opening another.
+if (!STATIC) window.name = `relay-canvas-${location.port || "80"}`;
+
 // ------------------------------------------------------------------ state
 //
 // The server writes snapshots; only this page writes canvas.json. A snapshot
