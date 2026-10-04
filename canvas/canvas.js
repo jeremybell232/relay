@@ -445,8 +445,7 @@ function layoutNotes(notes) {
   for (const column of columns.values()) {
     // A card's dashed line runs straight across when the element's height falls within
     // the card, so each card has a range it can slide in: from its bottom just reaching
-    // the element (lo) to its top just reaching it (hi). Prefer the first line of text
-    // level with the element, then nudge cards apart within those ranges.
+    // the element (lo) to its top just reaching it (hi).
     column.sort((p, q) => p.pin.y - q.pin.y || p.pin.x - q.pin.x);
     const k = noteScale();
     const gap = NOTE_GAP * k;
@@ -454,20 +453,48 @@ function layoutNotes(notes) {
     for (const it of column) {
       it.lo = it.pin.y - it.h + inset;
       it.hi = it.pin.y - inset;
-      it.top = Math.min(Math.max(it.pin.y - LINE_Y * k, it.lo), it.hi);
+      it.pref = Math.min(Math.max(it.pin.y - LINE_Y * k, it.lo), it.hi); // first text line level with the element
     }
-    // Down the column: never overlap the card above.
-    for (let i = 1; i < column.length; i++) column[i].top = Math.max(column[i].top, column[i - 1].top + column[i - 1].h + gap);
-    // The highest each card can sit with every card above it still in range.
-    for (let i = 0; i < column.length; i++)
-      column[i].floor = Math.max(column[i].lo, i > 0 ? column[i - 1].floor + column[i - 1].h + gap : -Infinity);
-    // Back up: a card pushed past its range moves up (never past that limit) and
-    // nudges the cards above it up too; a final pass down settles any overlap left.
-    for (let i = column.length - 1; i >= 0; i--) {
-      if (column[i].top > column[i].hi) column[i].top = Math.max(column[i].hi, column[i].floor);
-      if (i > 0) column[i - 1].top = Math.min(column[i - 1].top, column[i].top - gap - column[i - 1].h);
+
+    // 1. Choose which cards can be straight: down the column, each takes the highest
+    //    spot in its range below the previous straight card; a card that can't fit is
+    //    left to bend and doesn't take up space here.
+    const straight = [];
+    const bent = [];
+    let floor = -Infinity;
+    for (const it of column) {
+      const top = Math.max(it.lo, floor);
+      if (top <= it.hi) {
+        it.top = top;
+        floor = top + it.h + gap;
+        straight.push(it);
+      } else bent.push(it);
     }
-    for (let i = 1; i < column.length; i++) column[i].top = Math.max(column[i].top, column[i - 1].top + column[i - 1].h + gap);
+    // 2. Settle straight cards toward their preferred spot, bottom up, without overlap.
+    for (let i = straight.length - 1; i >= 0; i--) {
+      const it = straight[i];
+      const ceiling = i < straight.length - 1 ? straight[i + 1].top - gap - it.h : Infinity;
+      it.top = Math.max(it.top, Math.min(it.pref, it.hi, ceiling));
+    }
+    // 3. Fit cards that have to bend into the free space nearest their element.
+    const placed = [...straight];
+    for (const it of bent) {
+      placed.sort((a, b) => a.top - b.top);
+      const want = it.pin.y - it.h / 2;
+      let best = null;
+      const consider = (top) => {
+        if (best === null || Math.abs(top - want) < Math.abs(best - want)) best = top;
+      };
+      for (let i = 0; i <= placed.length; i++) {
+        const above = placed[i - 1];
+        const below = placed[i];
+        const min = above ? above.top + above.h + gap : -Infinity;
+        const max = below ? below.top - gap - it.h : Infinity;
+        if (min <= max) consider(Math.min(Math.max(want, min), max));
+      }
+      it.top = best ?? want;
+      placed.push(it);
+    }
 
     for (const { a, h, at, meta, side, pin, top } of column) {
       const x = side === "left" ? at.x - (GUTTER + NOTE_W) * k : at.x + sizeOf(meta).w + GUTTER * k;
