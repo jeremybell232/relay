@@ -295,9 +295,15 @@
       input:hover { background: #ffffff0d; }
       input:focus { background: #ffffff0d; box-shadow: inset 0 0 0 1px var(--blue); }
       input::placeholder { color: var(--muted); }
-      .snap { padding: 0 10px 0 8px; background: var(--blue); }
+      .snap { background: var(--blue); }
       .snap:hover { background: #0b88e2; }
-      .snap kbd { margin-left: 2px; font-size: 11px; color: #ffffffb3; }
+      /* Tooltips: shown after a short hover, on the side facing the middle of the screen. */
+      .tip { position: absolute; bottom: calc(100% + 8px); left: 0; padding: 5px 8px; border-radius: 6px; white-space: nowrap;
+        background: #1e1e1e; color: #fff; font-size: 11px; box-shadow: 0 0 0 0.5px #ffffff1f inset, 0 2px 8px #00000040;
+        opacity: 0; transform: translate(-50%, 2px); transition: opacity 120ms, transform 120ms; pointer-events: none; }
+      .tip.show { opacity: 1; transform: translate(-50%, 0); }
+      .tip kbd { margin-left: 8px; font: inherit; color: #ffffff80; }
+      :host([data-corner^="top"]) .tip { bottom: auto; top: calc(100% + 8px); }
       .icon { width: 32px; }
       button:disabled { opacity: .6; cursor: progress; }
       .sep { width: 1px; height: 18px; margin: 0 4px; background: #ffffff1f; }
@@ -312,8 +318,9 @@
       .toast.err { color: #ffb4b4; }
     </style>
     <div class="toast" part="toast"></div>
+    <div class="tip" role="tooltip"></div>
     <div class="bar">
-      <span class="grip" title="Drag to move" aria-label="Move the toolbar" role="button" tabindex="-1">
+      <span class="grip" aria-label="Move the toolbar" role="button" tabindex="-1" data-tip="Move" data-key="Drag">
         <!-- Lucide: grip-vertical -->
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="9" cy="12" r="1" /><circle cx="9" cy="5" r="1" /><circle cx="9" cy="19" r="1" />
@@ -322,15 +329,14 @@
       </span>
       <span class="sep"></span>
       <input placeholder="Name this state" aria-label="Snapshot name (optional)" />
-      <button class="snap" title="Snapshot this page state (⌥⇧S)">
+      <button class="icon snap" aria-label="Snap this page state" data-tip="Snap" data-key="⌥⇧S">
         <!-- Lucide: camera -->
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" />
           <circle cx="12" cy="13" r="3" />
         </svg>
-        Snap <kbd>⌥⇧S</kbd>
       </button>
-      <a class="icon canvas-link" href="${SERVER}/" target="${CANVAS_TAB}" title="Open the canvas" aria-label="Open the canvas">
+      <a class="icon canvas-link" href="${SERVER}/" target="${CANVAS_TAB}" aria-label="Open the canvas" data-tip="Open canvas">
         <!-- Lucide: square-arrow-out-up-right -->
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6" />
@@ -488,6 +494,27 @@
   }
 
   snapBtn.addEventListener("click", snap);
+
+  // Delayed tooltips for the icon controls.
+  const tip = $(".tip");
+  let tipTimer;
+  const hideTip = () => {
+    clearTimeout(tipTimer);
+    tip.classList.remove("show");
+  };
+  for (const el of root.querySelectorAll("[data-tip]")) {
+    el.addEventListener("pointerenter", () => {
+      if (host.classList.contains("dragging")) return;
+      clearTimeout(tipTimer);
+      tipTimer = setTimeout(() => {
+        tip.replaceChildren(el.dataset.tip, ...(el.dataset.key ? [Object.assign(document.createElement("kbd"), { textContent: el.dataset.key })] : []));
+        tip.style.left = `${el.offsetLeft + el.offsetWidth / 2}px`;
+        tip.classList.add("show");
+      }, 400);
+    });
+    el.addEventListener("pointerleave", hideTip);
+    el.addEventListener("pointerdown", hideTip);
+  }
 
   // Switch to the canvas tab if it's already open instead of opening another one.
   $(".canvas-link").addEventListener("click", (e) => {
