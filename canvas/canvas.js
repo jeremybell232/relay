@@ -195,7 +195,8 @@ function cardFor(meta) {
       <iframe sandbox="allow-same-origin" loading="lazy" scrolling="no" width="${w}" height="${ph}"></iframe>
       <div class="shield"></div>
     </div>
-    <div class="dims" aria-hidden="true"></div>`;
+    <div class="dims" aria-hidden="true"></div>
+    <div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>`;
   el.querySelector(".label").textContent = meta.label || meta.title || "Untitled";
   el.querySelector(".path").textContent = pathOf(meta);
   // The window size it was captured at, shown under the frame when selected (like Figma's size label).

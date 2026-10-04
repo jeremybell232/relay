@@ -70,10 +70,24 @@ kbd { font: 500 11px var(--font-sans); opacity: 0.5; }
 .card.selected .dims { display: block; }
 /* Figma-style frame outline: a stroke hugging the outside edge, no gap. Shown on
    hover (with the Move tool) and when selected; constant width on screen. */
-.card.selected,
 #viewport[data-tool="select"]:not(.panning) .card:hover {
+  outline: calc(1px / var(--z, 1)) solid var(--select); outline-offset: 0;
+}
+.card.selected, #viewport[data-tool="select"]:not(.panning) .card.selected:hover {
   outline: calc(2px / var(--z, 1)) solid var(--select); outline-offset: 0;
 }
+/* Selected frames also get Figma's corner handles. */
+.card .corners { display: none; }
+.card.selected .corners { display: block; }
+.card .corners i {
+  --h: calc(8px / var(--z, 1));
+  position: absolute; width: var(--h); height: var(--h); box-sizing: border-box; background: #fff;
+  border: calc(1.5px / var(--z, 1)) solid var(--select); pointer-events: none; z-index: 1;
+}
+.card .corners i:nth-child(1) { left: calc(var(--h) / -2 - 1px); top: calc(var(--h) / -2 - 1px); }
+.card .corners i:nth-child(2) { right: calc(var(--h) / -2 - 1px); top: calc(var(--h) / -2 - 1px); }
+.card .corners i:nth-child(3) { left: calc(var(--h) / -2 - 1px); bottom: calc(var(--h) / -2 - 1px); }
+.card .corners i:nth-child(4) { right: calc(var(--h) / -2 - 1px); bottom: calc(var(--h) / -2 - 1px); }
 .card.live { outline: calc(2px / var(--z, 1)) solid #22c55e; outline-offset: 0; }
 .card header {
   height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px;
