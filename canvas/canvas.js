@@ -645,7 +645,8 @@ function editNote(id) {
   el.onkeydown = (e) => {
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
-      el.blur();
+      el.blur(); // saves
+      select(null); // and puts the card down, like committing a comment in Figma
     }
   };
   el.focus();
