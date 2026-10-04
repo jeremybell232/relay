@@ -102,20 +102,11 @@ await fs.mkdir(SNAPS, { recursive: true });
 // Ignore the whole folder from inside itself, so no tracked file is touched.
 await fs.writeFile(path.join(DIR, ".gitignore"), "*\n", { flag: "wx" }).catch(() => {});
 
-// A double-clickable way to open this canvas from Finder: starts relay for the
-// project if needed, then opens the canvas in the browser.
-if (process.platform === "darwin") {
+// The old macOS opener is replaced by canvas.html.
+{
   const opener = path.join(DIR, "Open canvas.command");
-  const script = `#!/bin/bash
-# Opens this project's relay canvas. Starts relay first if it isn't running.
-cd "$(dirname "$0")/.." || exit 1
-NODE="$(command -v node || echo "${process.execPath}")"
-exec "$NODE" "${path.join(ROOT, "bin", "relay.js")}" --open
-`;
-  if ((await fs.readFile(opener, "utf8").catch(() => null)) !== script) {
-    await fs.writeFile(opener, script);
-    await fs.chmod(opener, 0o755);
-  }
+  const text = await fs.readFile(opener, "utf8").catch(() => "");
+  if (text.includes("Opens this project's relay canvas")) await fs.rm(opener, { force: true });
 }
 
 const clients = new Set();
@@ -156,6 +147,62 @@ const listSnapshots = async () => {
     files.map((f) => fs.readFile(path.join(SNAPS, f), "utf8").then(JSON.parse).catch(() => null)),
   );
   return metas.filter(Boolean).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+};
+
+// ---------------------------------------------------------------- canvas.html
+//
+// <project>.relay/canvas.html is what you open from the folder. With relay running
+// it jumps to the live, editable canvas; without it, it shows everything view-only
+// from data baked into the file. It's rewritten whenever the canvas changes.
+
+const STATIC_FILE = path.join(DIR, "canvas.html");
+const safeJson = (v) => JSON.stringify(v).replace(/</g, "\\u003c");
+
+async function writeStaticCanvas() {
+  const [indexHtml, css, camera, app] = await Promise.all(
+    ["canvas/index.html", "canvas/canvas.css", "canvas/camera.js", "canvas/canvas.js"].map((f) => fs.readFile(path.join(ROOT, f), "utf8")),
+  );
+  const snapshots = await listSnapshots();
+  const pages = {};
+  for (const m of snapshots) pages[m.id] = await fs.readFile(path.join(SNAPS, `${m.id}.html`), "utf8").catch(() => "");
+  const canvas = JSON.parse((await fs.readFile(CANVAS, "utf8").catch(() => null)) || '{"version":1,"layout":{},"annotations":[]}');
+
+  // One self-contained module: camera helpers inlined, the import dropped.
+  const script = (camera.replace(/^export /gm, "") + "\n" + app.replace(/^import .*from "\/camera\.js";\n/m, ""))
+    // A literal "</script" inside the code would end the inline <script> early.
+    .replace(/<\/script/gi, "<\\/script");
+  // The exact command to run, so it works without `npm link`.
+  const command = `cd ${JSON.stringify(ROOT_DIR)} && node ${JSON.stringify(path.join(ROOT, "bin", "relay.js"))} --open`;
+  const data = { root: ROOT_DIR, dir: DIR, port: PORT, command, canvas, snapshots, pages };
+
+  const redirect = `
+    // Relay running for this project? Then open the live, editable canvas instead.
+    (async () => {
+      const ports = [${PORT}, ...Array.from({ length: 12 }, (_, i) => 4400 + i)];
+      for (const port of new Set(ports)) {
+        try {
+          const info = await fetch("http://localhost:" + port + "/api/info", { signal: AbortSignal.timeout(300) }).then((r) => r.json());
+          if (info.dir === ${safeJson(DIR)}) return location.replace("http://localhost:" + port + "/");
+        } catch {}
+      }
+    })();`;
+
+  // Function replacers, so "$&"-style sequences in the inlined code stay literal.
+  const html = indexHtml
+    .replace("<title>relay</title>", () => `<title>${path.basename(ROOT_DIR)} · relay canvas</title>`)
+    .replace('<link rel="stylesheet" href="/canvas.css" />', () => `<style>\n${css}\n</style>`)
+    .replace(
+      '<script type="module" src="/canvas.js"></script>',
+      () => `<script>${redirect}\nwindow.RELAY_STATIC = ${safeJson(data)};</script>\n<script type="module">\n${script}\n</script>`,
+    );
+  await fs.writeFile(STATIC_FILE + ".tmp", html);
+  await fs.rename(STATIC_FILE + ".tmp", STATIC_FILE);
+}
+
+let staticTimer;
+const refreshStaticCanvas = () => {
+  clearTimeout(staticTimer);
+  staticTimer = setTimeout(() => writeStaticCanvas().catch((e) => console.error("relay: couldn't write canvas.html:", e.message)), 400);
 };
 
 const newId = () => `${Date.now().toString(36)}-${randomBytes(3).toString("hex")}`;
@@ -211,6 +258,7 @@ async function handle(req, res) {
     await fs.writeFile(path.join(SNAPS, `${id}.html`), html);
     await fs.writeFile(path.join(SNAPS, `${id}.json`), JSON.stringify(record, null, 2));
     broadcast("snapshot", record);
+    refreshStaticCanvas();
     console.log(`  ◉ ${id}  ${record.label || record.title || record.url}`);
     return send(res, 201, record);
   }
@@ -221,6 +269,7 @@ async function handle(req, res) {
     if (!ID_RE.test(id)) return send(res, 400, { error: "Bad id" });
     await Promise.all(["html", "json"].map((ext) => fs.rm(path.join(SNAPS, `${id}.${ext}`), { force: true })));
     broadcast("deleted", { id });
+    refreshStaticCanvas();
     return send(res, 200, { ok: true });
   }
 
@@ -244,6 +293,7 @@ async function handle(req, res) {
     const body = await readBody(req);
     JSON.parse(body); // refuse to persist anything that isn't JSON
     await writeAtomic(CANVAS, body);
+    refreshStaticCanvas();
     return send(res, 200, { ok: true });
   }
 
@@ -267,6 +317,7 @@ server.on("error", async (err) => {
   const info = await fetch(`${URL_}api/info`, { signal: AbortSignal.timeout(800) }).then((r) => r.json()).catch(() => null);
   if (info?.root === ROOT_DIR) {
     console.log(`relay is already running for this project → ${URL_}`);
+    await writeStaticCanvas().catch(() => {});
     if (OPEN) openBrowser(URL_);
     process.exit(0);
   }
@@ -280,6 +331,7 @@ server.on("error", async (err) => {
 
 server.listen(PORT, "127.0.0.1", () => {
   if (OPEN) openBrowser(URL_);
+  refreshStaticCanvas(); // bring canvas.html up to date with whatever is on disk
   console.log(`relay → http://localhost:${PORT}
   saving to ${path.relative(process.cwd(), DIR) || "."}/
   add to your page: <script src="http://localhost:${PORT}/relay.js" defer></script>`);

@@ -112,15 +112,19 @@ new row.
 Relay saves into a folder named after the project it runs in, in that project's root, so
 `~/code/checklists` gets `~/code/checklists/checklists.relay/`. Older `.relay/` folders are moved
 over automatically.
-- **Opening the canvas:** double-click **`Open canvas.command`** in that folder (macOS). It opens the
-  canvas in your browser, and starts relay for the project first if it isn't running.
+- **Opening the canvas:** open **`canvas.html`** in that folder.
+  - If relay is running for the project, it switches to the live, editable canvas.
+  - If it isn't, the file still shows every snapshot and annotation, view only, with the command to
+    start relay.
+  - Relay rewrites the file whenever the canvas changes, and it's self-contained, so you can send it
+    to someone.
 - **Not outside a project:** relay won't run from your home folder, Desktop, Documents or Downloads,
   so it never leaves a canvas folder there.
 - **Port:** each project keeps its own. `relay` uses the port in the project's toolbar snippet, and
   `/relay` picks the first free one.
 
 ```
-<project>.relay/Open canvas.command   double-click to open the canvas (macOS)
+<project>.relay/canvas.html       open this: live canvas if relay is running, otherwise view only
 <project>.relay/.gitignore        "*": the folder ignores itself, and no tracked file is touched
 <project>.relay/canvas.json       background, camera, card positions, annotations (with their element anchors)
 <project>.relay/snaps/<id>.html   frozen page

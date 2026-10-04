@@ -1,5 +1,11 @@
 import { screenToWorld, panBy, zoomAt, worldTransform, zoomToBox, normalizeWheel, zoomFactor } from "/camera.js";
 
+// When the canvas is opened from <project>.relay/canvas.html without relay running,
+// the server isn't there: everything comes from data baked into the file and the
+// canvas is view-only.
+const STATIC = window.RELAY_STATIC || null;
+const VIEW_ONLY = !!STATIC;
+
 // ------------------------------------------------------------------ state
 //
 // The server writes snapshots; only this page writes canvas.json. A snapshot
@@ -50,7 +56,7 @@ const pathOf = (meta) => {
 
 let saveTimer;
 function save() {
-  if (!loaded) return; // never let an empty doc overwrite a real one before load succeeds
+  if (!loaded || VIEW_ONLY) return; // never let an empty doc overwrite a real one before load succeeds
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     doc.camera = camera;
@@ -169,8 +175,8 @@ function cardFor(meta) {
   el.innerHTML = `
     <header>
       <span class="label"></span><span class="path"></span><span class="size" title="Viewport size when captured"></span><span class="time"></span>
-      <a href="/snaps/${meta.id}.html" target="_blank" title="Open the frozen page in a tab">Open</a>
-      <button data-action="delete" title="Delete snapshot">Delete</button>
+      ${VIEW_ONLY ? "" : `<a href="/snaps/${meta.id}.html" target="_blank" title="Open the frozen page in a tab">Open</a>
+      <button data-action="delete" title="Delete snapshot">Delete</button>`}
     </header>
     <div class="frame" style="height:${ph}px">
       <iframe sandbox="allow-same-origin" loading="lazy" scrolling="no" width="${w}" height="${ph}"></iframe>
@@ -197,7 +203,8 @@ function cardFor(meta) {
     } catch {}
     renderInk(); // anchored annotations can now find their elements
   });
-  frame.src = `/snaps/${meta.id}.html`;
+  if (STATIC) frame.srcdoc = STATIC.pages[meta.id] || "";
+  else frame.src = `/snaps/${meta.id}.html`;
   return el;
 }
 
@@ -686,7 +693,7 @@ viewport.addEventListener("pointerdown", (e) => {
 
   // Pan: space-drag, middle button, or dragging empty canvas with the select tool.
   const hit = e.target.closest("[data-id]");
-  if (spaceDown || e.button === 1 || (tool === "select" && !hit)) {
+  if (spaceDown || e.button === 1 || (tool === "select" && !hit) || VIEW_ONLY) {
     if (tool === "select" && !hit && !spaceDown) select(null);
     gesture = { type: "pan", last: screen };
     viewport.classList.add("panning");
@@ -849,7 +856,7 @@ viewport.addEventListener("dblclick", (e) => {
   // Pointer capture retargets click events to the viewport, so look up what's actually under the cursor.
   const target = document.elementFromPoint(e.clientX, e.clientY) || e.target;
   const note = target.closest(".note");
-  if (note) return editNote(note.dataset.id);
+  if (note) return VIEW_ONLY ? undefined : editNote(note.dataset.id);
   const card = target.closest(".card");
   if (card && !target.closest("header")) setLive(card.dataset.id);
 });
@@ -889,6 +896,7 @@ function deleteAnnotation(id) {
   save();
 }
 viewport.addEventListener("contextmenu", (e) => {
+  if (VIEW_ONLY) return;
   const hit = e.target.closest('[data-kind="ann"], [data-handle="pin"]');
   if (!hit || hit.closest("[contenteditable=true]")) return;
   e.preventDefault();
@@ -971,6 +979,16 @@ addEventListener("keydown", (e) => {
     return;
   }
   const mod = e.metaKey || e.ctrlKey;
+  if (VIEW_ONLY) {
+    // Pan (space), fit (F) and Escape only.
+    if (e.key === " ") {
+      spaceDown = true;
+      viewport.classList.add("space");
+      e.preventDefault();
+    } else if (!mod && e.key.toLowerCase() === "f") fit(bounds());
+    else if (e.key === "Escape") setLive(null);
+    return;
+  }
   if (mod && e.key.toLowerCase() === "z") {
     e.preventDefault();
     return e.shiftKey ? redo() : undo();
@@ -1091,10 +1109,9 @@ function removeSnap(id) {
 }
 
 async function load() {
-  const [saved, list] = await Promise.all([
-    fetch("/api/canvas").then((r) => r.json()),
-    fetch("/api/snapshots").then((r) => r.json()),
-  ]);
+  const [saved, list] = STATIC
+    ? [STATIC.canvas, STATIC.snapshots]
+    : await Promise.all([fetch("/api/canvas").then((r) => r.json()), fetch("/api/snapshots").then((r) => r.json())]);
   doc = { version: 1, camera: null, layout: {}, annotations: [], ...saved };
   // Forgiving load: drop anything malformed instead of refusing the whole file.
   doc.annotations = (doc.annotations || [])
@@ -1117,15 +1134,23 @@ async function load() {
   save();
 }
 
-$("#snippet").textContent = `<script src="${location.origin}/relay.js" defer></script>`;
+$("#snippet").textContent = `<script src="${STATIC ? `http://localhost:${STATIC.port}` : location.origin}/relay.js" defer></script>`;
+if (VIEW_ONLY) {
+  document.body.classList.add("is-view-only");
+  const bar = $("#view-only");
+  bar.hidden = false;
+  bar.querySelector("code").textContent = STATIC.command || `cd "${STATIC.root}" && relay`;
+}
 setTool("select");
 applyBackground();
 applyCamera();
 load().catch((err) => console.error("[relay] failed to load canvas", err));
 
-const events = new EventSource("/api/events");
-events.addEventListener("snapshot", (e) => addSnap(JSON.parse(e.data), true));
-events.addEventListener("deleted", (e) => {
-  const { id } = JSON.parse(e.data);
-  if (snaps.has(id)) removeSnap(id);
-});
+if (!STATIC) {
+  const events = new EventSource("/api/events");
+  events.addEventListener("snapshot", (e) => addSnap(JSON.parse(e.data), true));
+  events.addEventListener("deleted", (e) => {
+    const { id } = JSON.parse(e.data);
+    if (snaps.has(id)) removeSnap(id);
+  });
+}

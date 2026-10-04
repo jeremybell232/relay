@@ -41,8 +41,7 @@ missing.
      retry.
 
 4. **Reply in one line**: the toolbar is on the page (**Snap** or **⌥⇧S**), the canvas is in the
-   relay tab at `localhost:<relayPort>` (or open it any time with `Open canvas.command` in the
-   project's `<project>.relay/` folder), and you can snap for them.
+   relay tab at `localhost:<relayPort>` (or open it any time from `<project>.relay/canvas.html`), and you can snap for them.
 
 Never start relay from the home folder, Desktop, Documents or Downloads. It refuses anyway; ask
 which project folder to use instead.
