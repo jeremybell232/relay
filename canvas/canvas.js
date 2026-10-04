@@ -57,13 +57,23 @@ const pathOf = (meta) => {
 
 // ------------------------------------------------------------------ persistence
 
+// Several canvas tabs can be open on one project; each tells the server who saved
+// so the others can pick the change up (see "canvas" events below).
+const TAB_ID = Math.random().toString(36).slice(2);
 let saveTimer;
+let dirty = false;
 function save() {
   if (!loaded || VIEW_ONLY) return; // never let an empty doc overwrite a real one before load succeeds
   clearTimeout(saveTimer);
+  dirty = true;
   saveTimer = setTimeout(() => {
+    dirty = false;
     doc.camera = camera;
-    fetch("/api/canvas", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(doc, null, 1) });
+    fetch("/api/canvas", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "X-Relay-Tab": TAB_ID },
+      body: JSON.stringify(doc, null, 1),
+    });
   }, 500);
 }
 
@@ -1111,18 +1121,38 @@ function removeSnap(id) {
   save();
 }
 
-async function load() {
-  const [saved, list] = STATIC
-    ? [STATIC.canvas, STATIC.snapshots]
-    : await Promise.all([fetch("/api/canvas").then((r) => r.json()), fetch("/api/snapshots").then((r) => r.json())]);
-  doc = { version: 1, camera: null, layout: {}, annotations: [], ...saved };
+function normalise(saved) {
+  const d = { version: 1, camera: null, layout: {}, annotations: [], ...saved };
   // Forgiving load: drop anything malformed instead of refusing the whole file.
-  doc.annotations = (doc.annotations || [])
+  d.annotations = (d.annotations || [])
     .filter((a) => a && a.id && ["note", "arrow", "box"].includes(a.type))
     .map(migrate)
     .map(({ side, ...a }) => a) // card sides are always chosen by the layout now
     .filter((a) => a.type !== "note" || a.text.trim()); // an empty note is an abandoned edit
-  for (const at of Object.values(doc.layout)) delete at.hideViewport; // retired setting
+  for (const at of Object.values(d.layout)) delete at.hideViewport; // retired setting
+  return d;
+}
+
+// Another canvas tab saved: take its layout, annotations and background (this tab
+// keeps its own camera). Skipped mid-edit; this tab's next save carries its change.
+async function syncFromServer() {
+  if (dirty || gesture || editingNote) return;
+  const next = normalise(await fetch("/api/canvas").then((r) => r.json()));
+  if (dirty || gesture || editingNote) return;
+  doc.layout = next.layout;
+  doc.annotations = next.annotations;
+  doc.background = next.background;
+  if (selection?.kind === "ann" && !ann(selection.id)) selection = null;
+  for (const meta of snaps.values()) place(meta);
+  applyBackground();
+  render();
+}
+
+async function load() {
+  const [saved, list] = STATIC
+    ? [STATIC.canvas, STATIC.snapshots]
+    : await Promise.all([fetch("/api/canvas").then((r) => r.json()), fetch("/api/snapshots").then((r) => r.json())]);
+  doc = normalise(saved);
   loaded = true;
   for (const meta of list) {
     snaps.set(meta.id, meta);
@@ -1152,6 +1182,9 @@ load().catch((err) => console.error("[relay] failed to load canvas", err));
 if (!STATIC) {
   const events = new EventSource("/api/events");
   events.addEventListener("snapshot", (e) => addSnap(JSON.parse(e.data), true));
+  events.addEventListener("canvas", (e) => {
+    if (JSON.parse(e.data).tab !== TAB_ID) syncFromServer().catch(() => {});
+  });
   events.addEventListener("deleted", (e) => {
     const { id } = JSON.parse(e.data);
     if (snaps.has(id)) removeSnap(id);

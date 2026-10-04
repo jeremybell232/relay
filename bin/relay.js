@@ -301,6 +301,8 @@ async function handle(req, res) {
     const body = await readBody(req);
     JSON.parse(body); // refuse to persist anything that isn't JSON
     await writeAtomic(CANVAS, body);
+    // Other open canvas tabs pick the change up; the tab that saved ignores its own.
+    broadcast("canvas", { tab: req.headers["x-relay-tab"] || null });
     refreshStaticCanvas();
     return send(res, 200, { ok: true });
   }
