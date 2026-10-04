@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // relay — a tiny local server: serves the toolbar script, stores frozen page
-// snapshots under ./.relay, and hosts the canvas they get annotated on.
+// snapshots under ./<project>.relay, and hosts the canvas they get annotated on.
 
 import http from "node:http";
 import fs from "node:fs/promises";
@@ -18,13 +18,17 @@ const flag = (name, fallback) => {
 if (args.includes("--help") || args.includes("-h")) {
   console.log(`relay [--port 4400] [--dir .]
 
+Saves to <dir>/<dir name>.relay/, e.g. checklists/checklists.relay/
+
 Add to the page you're developing:
   <script src="http://localhost:4400/relay.js" defer></script>`);
   process.exit(0);
 }
 
 const PORT = Number(flag("port", process.env.RELAY_PORT || 4400));
-const DIR = path.resolve(flag("dir", process.cwd()), ".relay");
+const ROOT_DIR = path.resolve(flag("dir", process.cwd()));
+// Named after the project it belongs to, so it's obvious where it came from: checklists/checklists.relay/
+const DIR = path.join(ROOT_DIR, `${path.basename(ROOT_DIR)}.relay`);
 const SNAPS = path.join(DIR, "snaps");
 const CANVAS = path.join(DIR, "canvas.json");
 const MAX_BODY = 50 * 1024 * 1024;
@@ -37,6 +41,29 @@ const STATIC = {
   "/canvas.js": ["canvas/canvas.js", "text/javascript"],
   "/camera.js": ["canvas/camera.js", "text/javascript"],
 };
+
+const exists = (p) => fs.stat(p).then(() => true, () => false);
+
+const isCanvas = async (dir) => (await exists(path.join(dir, "snaps"))) || (await exists(path.join(dir, "canvas.json")));
+
+// Canvases used to live in .relay/ (and briefly relay/); move one over the first time.
+for (const old of [".relay", "relay"]) {
+  const from = path.join(ROOT_DIR, old);
+  if (!(await exists(DIR)) && (await isCanvas(from))) {
+    await fs.rename(from, DIR);
+    console.log(`  moved ${old}/ → ${path.basename(DIR)}/`);
+  }
+}
+
+// Never write into a "relay" folder that belongs to the project itself.
+if (await exists(DIR)) {
+  const ours = await isCanvas(DIR);
+  const empty = (await fs.readdir(DIR)).length === 0;
+  if (!ours && !empty) {
+    console.error(`${DIR} already exists and isn't a relay canvas. Run relay from another folder or pass --dir.`);
+    process.exit(1);
+  }
+}
 
 await fs.mkdir(SNAPS, { recursive: true });
 // Ignore the whole folder from inside itself, so no tracked file is touched.

@@ -5,7 +5,7 @@ infinite canvas. No dependencies, no build step, nothing committed.
 
 ```
 npm link                      # once, from this folder: puts `relay` on your PATH
-cd ~/my-project && relay      # → http://localhost:4400, saves to ./.relay/
+cd ~/my-project && relay      # → http://localhost:4400, saves to ./<project>.relay/
 ```
 
 Add this to the page while developing:
@@ -24,7 +24,7 @@ npm run demo                  # checklist app → http://localhost:5180, relay �
 ```
 
 `example/` is a small checklist app with several lists, filters, a detail drawer and empty states, so
-there are plenty of states to snapshot. Its snapshots are saved to `example/.relay/`. Use
+there are plenty of states to snapshot. Its snapshots are saved to `example/example.relay/`. Use
 **Reset demo data** in the app's sidebar to start over.
 
 ## Claude Code skill
@@ -99,11 +99,15 @@ new row.
 
 ## Files
 
+Relay saves into a folder named after the project it runs in, in that project's root, so
+`~/code/checklists` gets `~/code/checklists/checklists.relay/`. Older `.relay/` folders are moved
+over automatically.
+
 ```
-.relay/.gitignore        "*": the folder ignores itself, and no tracked file is touched
-.relay/canvas.json       background, camera, card positions, annotations (with their element anchors)
-.relay/snaps/<id>.html   frozen page
-.relay/snaps/<id>.json   url, title, label, viewport, scroll position, time
+<project>.relay/.gitignore        "*": the folder ignores itself, and no tracked file is touched
+<project>.relay/canvas.json       background, camera, card positions, annotations (with their element anchors)
+<project>.relay/snaps/<id>.html   frozen page
+<project>.relay/snaps/<id>.json   url, title, label, viewport, scroll position, time
 ```
 
 Options: `relay --port 4401 --dir ../other-project`.

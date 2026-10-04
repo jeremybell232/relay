@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // `npm run demo`: serves the example checklist app and starts relay next to it,
-// with snapshots saved to example/.relay/.
+// with snapshots saved to example/example.relay/.
 
 import http from "node:http";
 import fs from "node:fs/promises";

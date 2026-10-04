@@ -6,8 +6,8 @@ description: "Add the relay snapshot toolbar to the current project's local page
 # relay
 
 Relay is a zero-dependency local server. It serves a toolbar script that
-freezes the page's HTML into `./.relay/snaps/`, and hosts an annotatable canvas at
-`http://localhost:4400`. `.relay/` ignores itself with its own `.gitignore`, so don't edit the
+freezes the page's HTML into `./<project>.relay/snaps/`, and hosts an annotatable canvas at
+`http://localhost:4400`. `<project>.relay/` ignores itself with its own `.gitignore`, so don't edit the
 project's `.gitignore`.
 
 The argument decides the mode: none or `on` → **Add**, `off` → **Remove**, `snap [label]` → **Snap**.
@@ -32,7 +32,7 @@ The argument decides the mode: none or `on` → **Add**, `off` → **Remove**, `
      "port": 4400
    }
    ```
-   Relay writes `.relay/` into the directory it starts in. That is the project root, which is correct.
+   Relay writes `<project>.relay/` into the directory it starts in. That is the project root, which is correct.
 
 3. **Add the toolbar so it only loads in development.** Find the page's entry point. If there are
    several and it's unclear which one the user means, ask. Always wrap the addition in `relay`
@@ -89,7 +89,7 @@ run:
 document.querySelector("#__relay-toolbar").shadowRoot.querySelector("input").value = "<label>";
 await window.relay.snap();
 ```
-Confirm a new file appeared in `.relay/snaps/`, or check the canvas tab. If relay isn't on the page,
+Confirm a new file appeared in `<project>.relay/snaps/`, or check the canvas tab. If relay isn't on the page,
 run **Add** first.
 
 ## Remove (`/relay off`)
@@ -99,7 +99,7 @@ run **Add** first.
 2. Remove the `relay` entry from `.claude/launch.json`. If that leaves the file with an empty
    `configurations` list, delete the file.
 3. `preview_stop` the relay server if it's running.
-4. Leave `.relay/` alone, since that's the user's canvas, and tell the user it's still there.
+4. Leave `<project>.relay/` alone, since that's the user's canvas, and tell the user it's still there.
 
 ## Notes
 
@@ -109,11 +109,11 @@ run **Add** first.
 
 - Snapshots are frozen HTML with styles and same-origin assets inlined and scripts removed. Hover
   states, iframe contents and stylesheets that can't be read cross-origin aren't captured.
-- The data files are `.relay/canvas.json` (layout and annotations) and `.relay/snaps/<id>.{html,json}`.
+- The data files are `<project>.relay/canvas.json` (layout and annotations) and `<project>.relay/snaps/<id>.{html,json}`.
   Read them if the user asks what's on the canvas. An annotation point attached to an element looks
   like `{snap, path, dx, dy, label}`:
   - `label` is a readable tag such as `button#clear`.
   - `path` has one list of child indices per document. Start at `documentElement` of
-    `.relay/snaps/<snap>.html` and walk down `children`; each extra list continues inside a frozen
+    `<project>.relay/snaps/<snap>.html` and walk down `children`; each extra list continues inside a frozen
     iframe's `srcdoc`.
   Use this to tell which element in the user's source code a note is about.
