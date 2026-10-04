@@ -292,7 +292,7 @@
       .grip:hover { color: var(--fg); background: #ffffff0d; }
       .grip svg { width: 18px; height: 18px; }
       :host(.dragging) .grip { cursor: grabbing; }
-      input { height: 38px; width: 180px; padding: 0 12px; margin: 0 4px; border: 0; border-radius: 8px; outline: none;
+      input { height: 38px; width: 148px; padding: 0 10px; margin: 0 2px; border: 0; border-radius: 8px; outline: none;
         background: #383838; color: var(--fg); font-size: 12px; transition: background 140ms, box-shadow 140ms; }
       input:hover { background: #3e3e3e; }
       input:focus { background: #383838; box-shadow: inset 0 0 0 1px var(--blue); }
@@ -316,7 +316,7 @@
       .canvas-link { background: #383838; }
       .canvas-link:hover { background: #444444; }
       button:disabled { opacity: .6; cursor: progress; }
-      .sep { align-self: stretch; width: 1px; margin: -6px 4px; background: #ffffff1f; }
+      .sep { align-self: stretch; width: 1px; margin: -6px 2px; background: #ffffff1f; }
       /* The toast sits on the side of the bar facing the middle of the screen. */
       :host([data-corner^="top"]) .toast { bottom: auto; top: calc(100% + 8px); transform: translateY(-4px); }
       :host([data-corner^="top"]) .toast.show { transform: none; }
