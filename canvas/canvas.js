@@ -618,6 +618,7 @@ function render() {
 function setTool(t) {
   tool = t;
   if (t === "select") setHover(null);
+  viewport.classList.add("no-target"); // until the pointer reaches an element
   viewport.dataset.tool = t;
   document.querySelectorAll("[data-tool]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tool === t)));
 }
@@ -756,6 +757,7 @@ viewport.addEventListener("pointermove", (e) => {
     if (tool !== "select" && !spaceDown) {
       const hit = elementAt(toWorld(e));
       setHover(hit && { snap: hit.snap, path: hit.path, label: describe(hit.el) });
+      viewport.classList.toggle("no-target", !hit); // faded cursor off the snapshots
     }
   }
   if (!gesture) return;
