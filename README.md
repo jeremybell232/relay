@@ -62,7 +62,7 @@ that can't be read cross-origin (these stay linked, which is how Google Fonts ke
 | Scroll / drag empty space / hold space | pan |
 | ⌘-scroll / pinch | zoom |
 | **V** | select and move snapshots and annotations |
-| **N** | annotate the element you click (double-click an annotation to edit it) |
+| **N** | annotate the element you click; Enter saves, Shift+Enter adds a line (double-click to edit) |
 | **A** | arrow; each end attaches to the element it starts or ends on |
 | **R** | click to outline an element, or drag to draw a box tied to the element under the drag start |
 | **F** | fit everything, or the selected snapshot |

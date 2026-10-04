@@ -621,6 +621,13 @@ function editNote(id) {
   editingNote = id;
   el.contentEditable = "true";
   el.oninput = () => renderInk(); // the card grows as you type; keep the column tidy
+  // Enter saves; Shift+Enter starts a new line (left to the browser).
+  el.onkeydown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      el.blur();
+    }
+  };
   el.focus();
   getSelection().selectAllChildren(el);
   getSelection().collapseToEnd();
