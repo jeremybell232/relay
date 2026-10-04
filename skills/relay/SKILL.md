@@ -18,15 +18,18 @@ missing.
 
 ## Add
 
-1. **Run the script** from the project root. It does all the file work in one go: it finds the entry
-   file, inserts the dev-only toolbar snippet between `relay:start`/`relay:end` markers (skipping it
-   if already there), and merges a `relay` config and, if missing, an app dev-server config into
-   `.claude/launch.json`.
+1. **Run the script** from the session's folder (add `--dir <project>` if the session isn't opened
+   in the project). It does all the file work in one go:
+   - adds the dev-only toolbar to every page of the project, using the framework's shared layout
+     where there is one (Next.js, Astro, SvelteKit, Remix/React Router) and every real HTML page
+     otherwise. Pages it already has are skipped, so re-running picks up new pages;
+   - merges a `relay` config into this session's `.claude/launch.json`, plus an app dev-server
+     config if there's none.
    ```bash
    node ~/.claude/skills/relay/relay.mjs add
    ```
-   It prints JSON: `entry`, `inserted`, `relayPort`, `appConfig`, `appPort`, `notes`. Read `notes`
-   and act on them only if they say something needs doing.
+   It prints JSON: `framework`, `files`, `inserted`, `relayPort`, `appConfig`, `appPort`, `notes`.
+   Act on `notes` only if they say something needs doing (for example Nuxt needs a manual step).
 
 2. **Start both servers in one message**, as two parallel `preview_start` calls:
    `{name: "relay"}` and `{name: <appConfig>}`. The app tab is the one to check.

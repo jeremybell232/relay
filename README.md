@@ -39,8 +39,25 @@ ln -s "$PWD/skills/relay" ~/.claude/skills/relay
 ln -s "$PWD/skills/relay-off" ~/.claude/skills/relay-off
 ```
 
-The skills' file edits are done by `skills/relay/relay.mjs` in a single run (about 60ms), so `/relay` only
-has to start the servers. `off` hides the toolbar on open pages immediately and only touches the
+`/relay` puts the toolbar on every page of the project with as few edits as possible:
+
+| Project | Where the toolbar goes |
+|---|---|
+| Next.js | `app/layout` (app router) or `pages/_document` (pages router) |
+| Astro | every layout/page in `src/` that renders `<body>` |
+| SvelteKit | `src/app.html` |
+| Remix / React Router | `app/root` |
+| Vite, CRA and other single-page apps | `index.html` |
+| Plain HTML sites | every page with a `</body>`, in all folders |
+
+Pages are found with git's file list, so ignored folders are skipped, as are `node_modules`,
+build output and HTML fragments. Every insertion is dev-only and wrapped in `relay:start`/`relay:end`
+markers. Running `/relay` again picks up new pages, and `/relay-off` removes every insertion,
+leaving the files exactly as they were. Nuxt has no shared HTML file, so it needs the script added to
+`nuxt.config` by hand.
+
+The skills' file edits are done by `skills/relay/relay.mjs` in a single run, so `/relay` only has to
+start the servers. `off` hides the toolbar on open pages immediately and only touches the
 relay that belongs to the current session, so other projects' relays and the demo keep running. You can run it yourself too:
 
 ```

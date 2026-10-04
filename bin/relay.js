@@ -42,7 +42,8 @@ if (NOT_PROJECTS.includes(ROOT_DIR) && !args.includes("--force")) {
 
 // Use the port the project's toolbar snippet points at, so snapshots always reach this server.
 async function snippetPort() {
-  const files = ["index.html", "src/index.html", "public/index.html"];
+  const files = ["index.html", "src/index.html", "public/index.html", "src/app.html", "src/layouts/Layout.astro"];
+  for (const x of ["tsx", "jsx", "js", "ts"]) files.push(`app/root.${x}`);
   for (const d of ["app", "src/app"]) for (const x of ["tsx", "jsx", "js", "ts"]) files.push(`${d}/layout.${x}`);
   for (const d of ["pages", "src/pages"]) for (const x of ["tsx", "jsx", "js", "ts"]) files.push(`${d}/_document.${x}`);
   for (const f of files) {
@@ -172,7 +173,7 @@ async function writeStaticCanvas() {
     // A literal "</script" inside the code would end the inline <script> early.
     .replace(/<\/script/gi, "<\\/script");
   // The exact command to run, so it works without `npm link`.
-  const command = `cd ${JSON.stringify(ROOT_DIR)} && node ${JSON.stringify(path.join(ROOT, "bin", "relay.js"))} --open`;
+  const command = `cd ${JSON.stringify(ROOT_DIR)} && node ${JSON.stringify(path.join(ROOT, "bin", "relay.js"))} --port ${PORT} --open`;
   const data = { root: ROOT_DIR, dir: DIR, port: PORT, command, canvas, snapshots, pages };
 
   const redirect = `
