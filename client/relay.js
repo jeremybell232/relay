@@ -302,7 +302,7 @@
       /* Tooltips: shown after a short hover, on the side facing the middle of the screen. */
       .tip { position: absolute; bottom: calc(100% + 13px); left: 0; padding: 6px 9px; border-radius: 6px; white-space: nowrap;
         background: #1e1e1e; color: #ffffffeb; font-size: 11px; font-weight: 400; line-height: 1.2; letter-spacing: 0.01em;
-        box-shadow: 0 0 0 0.5px #ffffff14 inset, 0 4px 12px #00000040;
+        box-shadow: 0 4px 12px #00000040;
         opacity: 0; transform: translate(-50%, 2px); transition: opacity 120ms, transform 120ms; pointer-events: none; }
       .tip.show { opacity: 1; transform: translate(-50%, 0); }
       .tip::after { content: ""; position: absolute; left: 50%; top: 100%; width: 10px; height: 5px; transform: translateX(-50%);
