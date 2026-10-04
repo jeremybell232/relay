@@ -657,6 +657,7 @@ function editNote(id) {
     () => {
       el.contentEditable = "false";
       editingNote = null;
+      if (selection?.id === id) selection = null; // done writing: put the card down
       const a = ann(id);
       if (!a) return;
       const text = el.innerText.replace(/\n$/, "");
@@ -720,7 +721,7 @@ viewport.addEventListener("pointerdown", (e) => {
     const a = { id: uid(), type: "note", at, text: "" };
     doc.annotations.push(a);
     setTool("select");
-    select({ kind: "ann", id: a.id });
+    select(null); // a new card isn't selected: no blue ring while or after you write it
     editNote(a.id);
     e.preventDefault();
     return;
