@@ -300,12 +300,18 @@
       .snap { background: var(--blue); }
       .snap:hover { background: #0b88e2; }
       /* Tooltips: shown after a short hover, on the side facing the middle of the screen. */
-      .tip { position: absolute; bottom: calc(100% + 8px); left: 0; padding: 5px 8px; border-radius: 6px; white-space: nowrap;
-        background: #1e1e1e; color: #fff; font-size: 11px; box-shadow: 0 0 0 0.5px #ffffff1f inset, 0 2px 8px #00000040;
+      .tip { position: absolute; bottom: calc(100% + 9px); left: 0; padding: 6px 9px; border-radius: 6px; white-space: nowrap;
+        background: #1e1e1e; color: #ffffffeb; font-size: 11px; font-weight: 400; line-height: 1.2; letter-spacing: 0.01em;
+        box-shadow: 0 0 0 0.5px #ffffff14 inset, 0 4px 12px #00000040;
         opacity: 0; transform: translate(-50%, 2px); transition: opacity 120ms, transform 120ms; pointer-events: none; }
       .tip.show { opacity: 1; transform: translate(-50%, 0); }
-      .tip kbd { margin-left: 8px; font: inherit; color: #ffffff80; }
-      :host([data-corner^="top"]) .tip { bottom: auto; top: calc(100% + 8px); }
+      .tip::after { content: ""; position: absolute; left: 50%; top: 100%; width: 10px; height: 5px; transform: translateX(-50%);
+        background: #1e1e1e; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+      .tip kbd { margin-left: 8px; font: inherit; color: #ffffff73; }
+      /* Docked in a top corner: tooltip below the bar, tail pointing up. */
+      :host([data-corner^="top"]) .tip { bottom: auto; top: calc(100% + 9px); transform: translate(-50%, -2px); }
+      :host([data-corner^="top"]) .tip.show { transform: translate(-50%, 0); }
+      :host([data-corner^="top"]) .tip::after { top: auto; bottom: 100%; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
       .icon { width: 38px; }
       .canvas-link { background: #383838; }
       .canvas-link:hover { background: #444444; }
