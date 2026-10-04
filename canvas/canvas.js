@@ -58,13 +58,23 @@ const pathOf = (meta) => {
 // ------------------------------------------------------------------ persistence
 
 let saveTimer;
+let pendingSave = false;
+const writeNow = () => {
+  pendingSave = false;
+  doc.camera = camera;
+  // keepalive lets the save finish even if this tab is closing.
+  return fetch("/api/canvas", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(doc, null, 1), keepalive: true });
+};
 function save() {
   if (!loaded || VIEW_ONLY) return; // never let an empty doc overwrite a real one before load succeeds
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    doc.camera = camera;
-    fetch("/api/canvas", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(doc, null, 1) });
-  }, 500);
+  pendingSave = true;
+  saveTimer = setTimeout(writeNow, 500);
+}
+async function flushSave() {
+  clearTimeout(saveTimer);
+  if (editingNote) document.activeElement?.blur(); // commits the annotation being typed
+  if (pendingSave) await writeNow().catch(() => {});
 }
 
 const past = [];
@@ -1147,7 +1157,30 @@ if (VIEW_ONLY) {
 setTool("select");
 applyBackground();
 applyCamera();
-load().catch((err) => console.error("[relay] failed to load canvas", err));
+takeOver()
+  .then(load)
+  .catch((err) => console.error("[relay] failed to load canvas", err));
+
+// One canvas tab per project. Pages that can't reach the open canvas tab (other tabs,
+// typed URLs) open a new one; it announces itself and older canvas tabs save and
+// close, so whichever page you came from, you end up on a single canvas.
+// Older tabs save before this one loads, so nothing typed a moment ago is lost.
+function takeOver() {
+  if (STATIC || !("BroadcastChannel" in window)) return Promise.resolve();
+  const tabs = new BroadcastChannel(`relay-canvas-${location.port || "80"}`);
+  tabs.onmessage = async (e) => {
+    if (e.data !== "opened") return;
+    await flushSave();
+    tabs.postMessage("saved");
+    window.close(); // only works for tabs a script opened; a hand-opened tab just stays
+  };
+  return new Promise((resolve) => {
+    const done = () => (clearTimeout(timer), resolve());
+    const timer = setTimeout(done, 250); // no other canvas tab answered
+    tabs.addEventListener("message", (e) => e.data === "saved" && done());
+    tabs.postMessage("opened");
+  });
+}
 
 if (!STATIC) {
   const events = new EventSource("/api/events");
