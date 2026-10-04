@@ -7,6 +7,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
+import { execFile } from "node:child_process";
+import os from "node:os";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -16,17 +18,48 @@ const flag = (name, fallback) => {
   return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
 };
 if (args.includes("--help") || args.includes("-h")) {
-  console.log(`relay [--port 4400] [--dir .]
+  console.log(`relay [--port 4400] [--dir .] [--open]
 
 Saves to <dir>/<dir name>.relay/, e.g. checklists/checklists.relay/
+--open opens the canvas in your browser (and just opens it if relay is already running).
+The port defaults to the one in the project's toolbar snippet, else 4400.
 
 Add to the page you're developing:
   <script src="http://localhost:4400/relay.js" defer></script>`);
   process.exit(0);
 }
 
-const PORT = Number(flag("port", process.env.RELAY_PORT || 4400));
 const ROOT_DIR = path.resolve(flag("dir", process.cwd()));
+const OPEN = args.includes("--open");
+
+// Relay belongs inside a project. Refuse folders where a canvas would just be clutter.
+const HOME = os.homedir();
+const NOT_PROJECTS = ["/", HOME, ...["Desktop", "Documents", "Downloads"].map((d) => path.join(HOME, d))];
+if (NOT_PROJECTS.includes(ROOT_DIR) && !args.includes("--force")) {
+  console.error(`relay: ${ROOT_DIR} isn't a project folder. Run relay from your project (or pass --dir <project>).`);
+  process.exit(1);
+}
+
+// Use the port the project's toolbar snippet points at, so snapshots always reach this server.
+async function snippetPort() {
+  const files = ["index.html", "src/index.html", "public/index.html"];
+  for (const d of ["app", "src/app"]) for (const x of ["tsx", "jsx", "js", "ts"]) files.push(`${d}/layout.${x}`);
+  for (const d of ["pages", "src/pages"]) for (const x of ["tsx", "jsx", "js", "ts"]) files.push(`${d}/_document.${x}`);
+  for (const f of files) {
+    const src = await fs.readFile(path.join(ROOT_DIR, f), "utf8").catch(() => "");
+    const m = src.match(/localhost:(\d{2,5})\/relay\.js/);
+    if (m) return Number(m[1]);
+  }
+  return null;
+}
+const PORT = Number(flag("port", process.env.RELAY_PORT || (await snippetPort()) || 4400));
+const URL_ = `http://localhost:${PORT}/`;
+
+function openBrowser(url) {
+  const [cmd, cmdArgs] =
+    process.platform === "darwin" ? ["open", [url]] : process.platform === "win32" ? ["cmd", ["/c", "start", "", url]] : ["xdg-open", [url]];
+  execFile(cmd, cmdArgs, () => {});
+}
 // Named after the project it belongs to, so it's obvious where it came from: checklists/checklists.relay/
 const DIR = path.join(ROOT_DIR, `${path.basename(ROOT_DIR)}.relay`);
 const SNAPS = path.join(DIR, "snaps");
@@ -68,6 +101,22 @@ if (await exists(DIR)) {
 await fs.mkdir(SNAPS, { recursive: true });
 // Ignore the whole folder from inside itself, so no tracked file is touched.
 await fs.writeFile(path.join(DIR, ".gitignore"), "*\n", { flag: "wx" }).catch(() => {});
+
+// A double-clickable way to open this canvas from Finder: starts relay for the
+// project if needed, then opens the canvas in the browser.
+if (process.platform === "darwin") {
+  const opener = path.join(DIR, "Open canvas.command");
+  const script = `#!/bin/bash
+# Opens this project's relay canvas. Starts relay first if it isn't running.
+cd "$(dirname "$0")/.." || exit 1
+NODE="$(command -v node || echo "${process.execPath}")"
+exec "$NODE" "${path.join(ROOT, "bin", "relay.js")}" --open
+`;
+  if ((await fs.readFile(opener, "utf8").catch(() => null)) !== script) {
+    await fs.writeFile(opener, script);
+    await fs.chmod(opener, 0o755);
+  }
+}
 
 const clients = new Set();
 const broadcast = (event, data) => {
@@ -209,13 +258,28 @@ const server = http.createServer((req, res) =>
   }),
 );
 
-server.on("error", (err) => {
-  if (err.code === "EADDRINUSE") console.error(`Port ${PORT} is in use. Try: relay --port ${PORT + 1}`);
-  else console.error(err);
+server.on("error", async (err) => {
+  if (err.code !== "EADDRINUSE") {
+    console.error(err);
+    process.exit(1);
+  }
+  // Already running for this project? Then just open it.
+  const info = await fetch(`${URL_}api/info`, { signal: AbortSignal.timeout(800) }).then((r) => r.json()).catch(() => null);
+  if (info?.root === ROOT_DIR) {
+    console.log(`relay is already running for this project → ${URL_}`);
+    if (OPEN) openBrowser(URL_);
+    process.exit(0);
+  }
+  console.error(
+    info?.root
+      ? `Port ${PORT} is used by relay for ${info.root}. Stop that one, or run: relay --port ${PORT + 1}`
+      : `Port ${PORT} is in use. Try: relay --port ${PORT + 1}`,
+  );
   process.exit(1);
 });
 
 server.listen(PORT, "127.0.0.1", () => {
+  if (OPEN) openBrowser(URL_);
   console.log(`relay → http://localhost:${PORT}
   saving to ${path.relative(process.cwd(), DIR) || "."}/
   add to your page: <script src="http://localhost:${PORT}/relay.js" defer></script>`);

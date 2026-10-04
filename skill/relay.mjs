@@ -11,6 +11,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import net from "node:net";
 
 const RELAY_BIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../bin/relay.js");
 const args = process.argv.slice(2);
@@ -21,6 +22,9 @@ const LAUNCH = path.join(ROOT, ".claude", "launch.json");
 const START = "relay:start";
 
 const read = (p) => fs.readFile(p, "utf8").catch(() => null);
+// Plain multi-page sites: every .html file in the project root is a page.
+const rootPages = async (root) =>
+  (await fs.readdir(root).catch(() => [])).filter((f) => f.toLowerCase().endsWith(".html")).sort((a, b) => (a === "index.html" ? -1 : b === "index.html" ? 1 : a.localeCompare(b)));
 const exists = async (p) => (await read(p)) != null;
 
 // Entry points in priority order. `kind` decides what gets inserted.
@@ -52,6 +56,28 @@ const jsxBlock = (port, indent) =>
     .map((l) => indent + l)
     .join("\n") + "\n";
 
+// Is anything listening on this port right now?
+const listening = (port) =>
+  new Promise((resolve) => {
+    const sock = net.connect({ port, host: "127.0.0.1" });
+    sock.setTimeout(300);
+    sock.once("connect", () => (sock.destroy(), resolve(true)));
+    sock.once("error", () => resolve(false));
+    sock.once("timeout", () => (sock.destroy(), resolve(false)));
+  });
+
+// First port from 4400 that no other launch config claims and that is either free
+// or already a relay serving this very project.
+async function pickPort(taken) {
+  for (let port = 4400; port < 4420; port++) {
+    if (taken.has(port)) continue;
+    if (!(await listening(port))) return port;
+    const info = await fetch(`http://localhost:${port}/api/info`, { signal: AbortSignal.timeout(400) }).then((r) => r.json()).catch(() => null);
+    if (info?.root === ROOT) return port;
+  }
+  return 4420;
+}
+
 async function readLaunch() {
   const text = await read(LAUNCH);
   if (!text) return { version: "0.0.1", configurations: [] };
@@ -82,7 +108,7 @@ async function add() {
   const cfg = await readLaunch();
   const others = cfg.configurations.filter((c) => c.name !== "relay");
   const used = new Set(others.map((c) => c.port));
-  out.relayPort = used.has(4400) ? 4401 : 4400;
+  out.relayPort = await pickPort(used);
   const relay = { name: "relay", runtimeExecutable: "node", runtimeArgs: [RELAY_BIN, "--port", String(out.relayPort)], port: out.relayPort };
   let app = others[0];
   if (!app) {
@@ -103,40 +129,44 @@ async function add() {
     return out;
   }
   const entry = found[0];
-  out.entry = entry.file;
-  if (found.length > 1) out.notes.push(`Other possible entries: ${found.slice(1).map((c) => c.file).join(", ")}`);
+  // A plain HTML site gets the toolbar on every page in its root, not just index.html.
+  const targets = entry.kind === "html" && !entry.file.includes("/")
+    ? (await rootPages(ROOT)).map((file) => ({ file, kind: "html" }))
+    : [entry];
+  out.entry = targets.map((t) => t.file).join(", ");
+  if (found.length > 1 && targets.length === 1) out.notes.push(`Other possible entries: ${found.slice(1).map((c) => c.file).join(", ")}`);
 
-  const file = path.join(ROOT, entry.file);
-  let src = await read(file);
-  if (src.includes(START)) {
-    out.notes.push("Toolbar snippet already present.");
-    // Keep the port in step with launch.json.
-    src = src.replace(/localhost:44\d\d\/relay\.js/g, `localhost:${out.relayPort}/relay.js`);
+  for (const target of targets) {
+    const file = path.join(ROOT, target.file);
+    let src = await read(file);
+    if (src.includes(START)) {
+      // Already there; just keep its port in step with launch.json.
+      await fs.writeFile(file, src.replace(/localhost:\d{2,5}\/relay\.js/g, `localhost:${out.relayPort}/relay.js`));
+      continue;
+    }
+    const close = src.toLowerCase().lastIndexOf("</body>");
+    if (target.kind === "html") {
+      const block = htmlBlock(out.relayPort);
+      src = close >= 0 ? src.slice(0, close) + block + src.slice(close) : src + "\n" + block;
+    } else {
+      if (close < 0) {
+        out.notes.push(`${target.file} has no </body>; add the snippet by hand.`);
+        continue;
+      }
+      const lineStart = src.lastIndexOf("\n", close) + 1;
+      const indent = src.slice(lineStart, close).match(/^\s*/)[0] + "  ";
+      src = src.slice(0, lineStart) + jsxBlock(out.relayPort, indent) + src.slice(lineStart);
+      if (!/from\s+["']next\/script["']/.test(src)) {
+        // After a leading "use client"/"use strict" directive if there is one.
+        const directive = src.match(/^(\s*["']use [a-z]+["'];?\s*\n)/);
+        const at = directive ? directive[0].length : 0;
+        src = src.slice(0, at) + `import Script from "next/script"; // relay\n` + src.slice(at);
+      }
+    }
     await fs.writeFile(file, src);
-    return out;
+    out.inserted = true;
   }
-
-  const close = src.toLowerCase().lastIndexOf("</body>");
-  if (entry.kind === "html") {
-    const block = htmlBlock(out.relayPort);
-    src = close >= 0 ? src.slice(0, close) + block + src.slice(close) : src + "\n" + block;
-  } else {
-    if (close < 0) {
-      out.notes.push(`${entry.file} has no </body>; add the snippet by hand.`);
-      return out;
-    }
-    const lineStart = src.lastIndexOf("\n", close) + 1;
-    const indent = src.slice(lineStart, close).match(/^\s*/)[0] + "  ";
-    src = src.slice(0, lineStart) + jsxBlock(out.relayPort, indent) + src.slice(lineStart);
-    if (!/from\s+["']next\/script["']/.test(src)) {
-      // After a leading "use client"/"use strict" directive if there is one.
-      const directive = src.match(/^(\s*["']use [a-z]+["'];?\s*\n)/);
-      const at = directive ? directive[0].length : 0;
-      src = src.slice(0, at) + `import Script from "next/script"; // relay\n` + src.slice(at);
-    }
-  }
-  await fs.writeFile(file, src);
-  out.inserted = true;
+  if (!out.inserted) out.notes.push("Toolbar snippet already present.");
   return out;
 }
 
@@ -164,7 +194,9 @@ function stripSnippet(src) {
 
 async function removeFrom(root) {
   const removed = [];
-  for (const c of CANDIDATES) {
+  const files = new Set([...CANDIDATES.map((c) => c.file), ...(await rootPages(root))]);
+  for (const f of files) {
+    const c = { file: f };
     const file = path.join(root, c.file);
     const src = await read(file);
     if (!src || !src.includes(START)) continue;
